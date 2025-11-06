@@ -2,7 +2,7 @@
 
 XXX is a program designed in form of focus test and imagined to be applied in social media campaigns for fun or for events, aiming to raise the awareness and self-reflection towards the attention fighting from all of various sources nowadays. 碎片化vs专注力
 
-Work by: Jinying(Helen) Xie, Name, Name, Name
+Work by: Jinying(Helen) Xie, Mei Lam Sit, Name, Name
 
 ## Ideation
 After choosing a few random words based on the mechanism of SGDs game and couple of twisting and discussion, we decided combine some artist visuals but also make it practical.
