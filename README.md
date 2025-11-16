@@ -5,7 +5,7 @@ XXX is a program designed in form of focus test and imagined to be applied in so
 Work by: Jinying(Helen) Xie, Mei Lam Sit, Name, Name
 
 ## Ideation
-After choosing a few random words based on the mechanism of SGDs game and couple of twisting and discussion, we decided combine some artist visuals but also make it practical.
+After choosing a few random words based on the mechanism of SGDs game and a couple of twists and discussion, we decided combine some artist visuals but also make it practical.
 
 ## Mechanism
 （here put a simple workflow walkthrough)
