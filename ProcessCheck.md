@@ -10,5 +10,5 @@ So for our brainstorming, we each came up with a series of keywords and mixed th
 ## Meeting 1 at October 31st.
 We narrowed and settled down our idea, rationale, and inital rough framework for the mechanism. We then create a [google sheet](https://docs.google.com/spreadsheets/d/1aEJvqby4MpUu6fafqfanbBQbTC_PX6k7si9ylCiqBek/edit?gid=0#gid=0) to manage our to-do and tasks distribution.
 
-## Meeting 2 at 
+## Meeting 2 at November
 
