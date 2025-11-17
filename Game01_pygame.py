@@ -323,52 +323,43 @@ class MagicCircle:
         
         # Layer 1: Draw intricate center pattern (Seed of Life, Metatron's Cube, etc.)
         self._draw_sacred_center(screen, center_x, center_y, bright_color, dim_color, eye_tracker, clock)
-        pygame.display.flip()
         eye_tracker.show_camera_preview()
-        pygame.time.wait(600)  # Longer pause after center
         
         # Layer 2: Draw base geometric shape (not just circles!)
         self._draw_base_geometry(screen, center_x, center_y, bright_color, dim_color, very_dim, eye_tracker, start_time, clock)
-        pygame.display.flip()
         eye_tracker.show_camera_preview()
-        pygame.time.wait(500)  # Longer pause after base geometry
         
         # Layer 3: Draw overlapping geometric overlays
         for overlay_shape in self.overlay_shapes:
             self._draw_geometric_overlay(screen, center_x, center_y, overlay_shape, sec_bright, sec_dim)
-        pygame.display.flip()
-        pygame.time.wait(500)
+            pygame.display.flip()
+            clock.tick(5)
         
         # Layer 4: Draw intricate web connections
         self._draw_complex_web(screen, center_x, center_y, dim_color, very_dim)
         pygame.display.flip()
-        pygame.time.wait(500)
         
         # Layer 5: Draw fractal/recursive patterns
         if self.has_fractals:
             self._draw_fractal_patterns(screen, center_x, center_y, bright_color, dim_color)
             pygame.display.flip()
-            pygame.time.wait(500)
         
         # Layer 6: Draw nested polygons at all vertices
         self._draw_nested_decorations(screen, center_x, center_y, bright_color, sec_bright, dim_color)
         pygame.display.flip()
-        pygame.time.wait(500)
         
         # Layer 7: Extended rays and outer decorations
         self._draw_outer_complexity(screen, center_x, center_y, bright_color, dim_color, sec_bright)
         pygame.display.flip()
-        pygame.time.wait(500)
         
         # Layer 8: Brilliant center
         self._draw_brilliant_core(screen, center_x, center_y, bright_color)
         pygame.display.flip()
-        pygame.time.wait(600)  # Longer pause at end
     
     def _draw_sacred_center(self, screen, cx, cy, bright, dim, eye_tracker, clock):
         """Draw elaborate sacred geometry center"""
         if self.inner_pattern == 'seed_of_life':
-            # Seed of Life - 7 overlapping circles
+            # Seed of Life - 7 overlapping circles, drawn one at a time
             radius = 25
             positions = [(0, 0)]
             for i in range(6):
@@ -382,6 +373,9 @@ class MagicCircle:
                     glow = tuple(max(0, c - thickness * 20) for c in dim)
                     pygame.draw.circle(screen, glow, (cx + px, cy + py), radius, thickness)
                 pygame.draw.circle(screen, bright, (cx + px, cy + py), radius, 1)
+                # Update after each circle
+                pygame.display.flip()
+                clock.tick(5)
         
         elif self.inner_pattern == 'metatron':
             # Metatron's Cube - complex overlapping geometry
@@ -427,7 +421,7 @@ class MagicCircle:
                 pygame.draw.polygon(screen, dim, points_down, 2)
         
         elif self.inner_pattern == 'flower_of_life':
-            # Flower of Life pattern
+            # Flower of Life pattern, drawn circle by circle
             radius = 22
             rows = 3
             for row in range(-rows, rows + 1):
@@ -438,6 +432,8 @@ class MagicCircle:
                     y = cy + row * radius * 1.5
                     if math.sqrt((x - cx)**2 + (y - cy)**2) < 80:
                         pygame.draw.circle(screen, bright, (int(x), int(y)), radius, 1)
+                        pygame.display.flip()
+                        clock.tick(8)
     
     def _draw_base_geometry(self, screen, cx, cy, bright, dim, very_dim, eye_tracker, start_time, clock):
         """Draw base geometric structure (polygons, not just circles)"""
@@ -463,7 +459,7 @@ class MagicCircle:
                     pygame.draw.circle(screen, glow, (cx, cy), current_radius, thickness)
                 pygame.draw.circle(screen, bright, (cx, cy), current_radius, 1)
             
-            # Draw radiating spokes from center
+            # Draw radiating spokes from center, one at a time
             for i in range(self.num_spokes):
                 angle = i * angle_step + self.rotation_offset
                 end_x = cx + int(current_radius * math.cos(math.radians(angle)))
@@ -488,12 +484,10 @@ class MagicCircle:
                 gaze_pos = eye_tracker.get_gaze_position()
                 if gaze_pos:
                     eye_tracker.log_gaze((end_x, end_y), gaze_pos, time.time() - start_time)
-            
-            # Update display progressively for smooth animation
-            pygame.display.flip()
-            if layer_idx % 2 == 0:
-                eye_tracker.show_camera_preview()
-            clock.tick(6)  # Very smooth: 6 FPS for meditative flow
+                
+                # Update display after each spoke for continuous animation
+                pygame.display.flip()
+                clock.tick(5)
     
     def _draw_polygon_layer(self, screen, cx, cy, radius, sides, bright, dim, very_dim, rotation):
         """Draw polygon shape with glow"""
