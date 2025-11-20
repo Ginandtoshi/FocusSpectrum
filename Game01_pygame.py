@@ -19,6 +19,7 @@ import numpy as np
 
 # Initialize Pygame
 pygame.init()
+pygame.mixer.init()
 
 # Screen settings
 SCREEN_WIDTH = 1200
@@ -29,6 +30,367 @@ FPS = 60
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 GRAY = (245, 245, 245)
+
+
+def generate_beep_sound(frequency=440, duration=0.1, waveform='sine', envelope='flat'):
+    """Generate a beep sound with various waveforms and envelopes"""
+    sample_rate = 22050
+    n_samples = int(duration * sample_rate)
+    
+    # Generate waveform
+    if waveform == 'sine':
+        wave = [math.sin(2 * math.pi * frequency * t / sample_rate) for t in range(n_samples)]
+    elif waveform == 'square':
+        wave = [1.0 if math.sin(2 * math.pi * frequency * t / sample_rate) > 0 else -1.0 for t in range(n_samples)]
+    elif waveform == 'triangle':
+        wave = [2 * abs(2 * ((frequency * t / sample_rate) % 1) - 1) - 1 for t in range(n_samples)]
+    elif waveform == 'sawtooth':
+        wave = [2 * ((frequency * t / sample_rate) % 1) - 1 for t in range(n_samples)]
+    elif waveform == 'chirp':  # Frequency sweep
+        end_freq = frequency * 1.5
+        wave = [math.sin(2 * math.pi * (frequency + (end_freq - frequency) * t / n_samples) * t / sample_rate) 
+                for t in range(n_samples)]
+    else:
+        wave = [math.sin(2 * math.pi * frequency * t / sample_rate) for t in range(n_samples)]
+    
+    # Apply envelope
+    for i in range(n_samples):
+        if envelope == 'fade_in':
+            wave[i] *= min(1.0, i / (n_samples * 0.3))
+        elif envelope == 'fade_out':
+            wave[i] *= min(1.0, (n_samples - i) / (n_samples * 0.3))
+        elif envelope == 'fade_both':
+            fade_in = min(1.0, i / (n_samples * 0.2))
+            fade_out = min(1.0, (n_samples - i) / (n_samples * 0.2))
+            wave[i] *= fade_in * fade_out
+        elif envelope == 'pulse':
+            # Create pulsing effect
+            pulse_freq = 10
+            wave[i] *= 0.5 + 0.5 * abs(math.sin(2 * math.pi * pulse_freq * i / sample_rate))
+    
+    # Convert to int16 with volume control
+    int_wave = [int(32767 * 0.3 * sample) for sample in wave]
+    
+    # Convert to stereo
+    stereo_wave = []
+    for sample in int_wave:
+        stereo_wave.extend([sample, sample])
+    
+    # Create sound from array
+    sound_array = np.array(stereo_wave, dtype=np.int16)
+    sound = pygame.mixer.Sound(sound_array)
+    return sound
+
+
+def generate_voice_sound(sound_type='laugh'):
+    """Generate synthesized human/animal sounds"""
+    sample_rate = 22050
+    
+    if sound_type == 'laugh':
+        # Ha-ha-ha pattern with varying pitch
+        segments = []
+        for i in range(3):
+            duration = 0.12
+            n_samples = int(duration * sample_rate)
+            freq = 280 + i * 20
+            wave = [math.sin(2 * math.pi * freq * t / sample_rate) * 
+                   (1 - abs(t / n_samples - 0.5) * 2) for t in range(n_samples)]
+            segments.extend(wave)
+            if i < 2:
+                segments.extend([0] * int(0.05 * sample_rate))  # Pause
+        wave = segments
+    
+    elif sound_type == 'hello':
+        # "Hello" - rising then falling pitch with stronger formants
+        duration = 0.45
+        n_samples = int(duration * sample_rate)
+        wave = []
+        for t in range(n_samples):
+            progress = t / n_samples
+            # "Hel-" rising, "-lo" falling
+            if progress < 0.4:
+                freq = 180 + 120 * (progress / 0.4)
+            else:
+                freq = 300 - 80 * ((progress - 0.4) / 0.6)
+            
+            # Add stronger formants (vocal resonances)
+            fundamental = math.sin(2 * math.pi * freq * t / sample_rate) * 0.6
+            formant1 = math.sin(2 * math.pi * freq * 3 * t / sample_rate) * 0.3
+            formant2 = math.sin(2 * math.pi * freq * 5 * t / sample_rate) * 0.2
+            
+            amplitude = math.sin(progress * math.pi) * 0.95
+            wave.append((fundamental + formant1 + formant2) * amplitude)
+    
+    elif sound_type == 'hey':
+        # "Hey!" - quick rising exclamation with stronger presence
+        duration = 0.3
+        n_samples = int(duration * sample_rate)
+        wave = []
+        for t in range(n_samples):
+            progress = t / n_samples
+            freq = 200 + 250 * progress
+            
+            # Stronger formants for "ay" sound
+            fundamental = math.sin(2 * math.pi * freq * t / sample_rate) * 0.7
+            formant1 = math.sin(2 * math.pi * freq * 4 * t / sample_rate) * 0.3
+            formant2 = math.sin(2 * math.pi * freq * 7 * t / sample_rate) * 0.2
+            
+            amplitude = math.exp(-progress * 2) * 0.95
+            wave.append((fundamental + formant1 + formant2) * amplitude)
+    
+    elif sound_type == 'oh':
+        # "Oh!" - surprise sound with stronger presence
+        duration = 0.4
+        n_samples = int(duration * sample_rate)
+        wave = []
+        for t in range(n_samples):
+            progress = t / n_samples
+            # Quick rise then gradual fall
+            if progress < 0.15:
+                freq = 150 + 200 * (progress / 0.15)
+            else:
+                freq = 350 - 100 * ((progress - 0.15) / 0.85)
+            
+            # Stronger rounded "oh" formants
+            fundamental = math.sin(2 * math.pi * freq * t / sample_rate) * 0.7
+            formant1 = math.sin(2 * math.pi * freq * 2 * t / sample_rate) * 0.35
+            formant2 = math.sin(2 * math.pi * freq * 3.5 * t / sample_rate) * 0.15
+            
+            amplitude = math.sin(progress * math.pi) * 0.95
+            wave.append((fundamental + formant1 + formant2) * amplitude)
+    
+    elif sound_type == 'wow':
+        # "Wow" - two syllables with stronger presence
+        duration = 0.5
+        n_samples = int(duration * sample_rate)
+        wave = []
+        for t in range(n_samples):
+            progress = t / n_samples
+            # "W-" low, "-ow" high and falling
+            if progress < 0.25:
+                freq = 160 + 40 * (progress / 0.25)
+            elif progress < 0.45:
+                freq = 200 + 200 * ((progress - 0.25) / 0.2)
+            else:
+                freq = 400 - 150 * ((progress - 0.45) / 0.55)
+            
+            # Stronger formants
+            fundamental = math.sin(2 * math.pi * freq * t / sample_rate) * 0.65
+            formant1 = math.sin(2 * math.pi * freq * 2.5 * t / sample_rate) * 0.35
+            formant2 = math.sin(2 * math.pi * freq * 4 * t / sample_rate) * 0.2
+            
+            amplitude = 0.85 + 0.15 * math.sin(progress * math.pi)
+            wave.append((fundamental + formant1 + formant2) * amplitude * 0.95)
+    
+    elif sound_type == 'yeah':
+        # "Yeah" - affirmative sound with stronger presence
+        duration = 0.4
+        n_samples = int(duration * sample_rate)
+        wave = []
+        for t in range(n_samples):
+            progress = t / n_samples
+            # Steady with slight rise at end
+            freq = 220 + 80 * math.sin(progress * math.pi)
+            
+            # Stronger formants for "yeah"
+            fundamental = math.sin(2 * math.pi * freq * t / sample_rate) * 0.6
+            formant1 = math.sin(2 * math.pi * freq * 3.5 * t / sample_rate) * 0.35
+            formant2 = math.sin(2 * math.pi * freq * 6 * t / sample_rate) * 0.25
+            
+            amplitude = math.sin(progress * math.pi) * 0.95
+            wave.append((fundamental + formant1 + formant2) * amplitude)
+    
+    elif sound_type == 'cough':
+        # Short burst of noise
+        duration = 0.15
+        n_samples = int(duration * sample_rate)
+        wave = []
+        for t in range(n_samples):
+            # Mix of frequencies to create cough-like sound
+            noise = random.uniform(-1, 1) * 0.3
+            tone = math.sin(2 * math.pi * 180 * t / sample_rate) * 0.7
+            amplitude = math.exp(-t / (n_samples * 0.3))
+            wave.append((noise + tone) * amplitude)
+    
+    elif sound_type == 'bird':
+        # More realistic chirping with rapid trills - extended
+        duration = 1.2
+        n_samples = int(duration * sample_rate)
+        wave = []
+        for t in range(n_samples):
+            progress = t / n_samples
+            # Multiple harmonics for richer bird sound with more complex pattern
+            freq1 = 2200 + 600 * math.sin(progress * math.pi * 12)
+            freq2 = 3400 + 400 * math.sin(progress * math.pi * 18)
+            tone1 = math.sin(2 * math.pi * freq1 * t / sample_rate) * 0.45
+            tone2 = math.sin(2 * math.pi * freq2 * t / sample_rate) * 0.3
+            amplitude = math.sin(progress * math.pi) * (0.7 + 0.15 * random.random())
+            wave.append((tone1 + tone2) * amplitude)
+    
+    elif sound_type == 'dog':
+        # More realistic bark - aggressive with harmonics - extended with multiple barks
+        segments = []
+        # Create 4 barks
+        for bark in range(4):
+            duration = 0.28
+            n_samples = int(duration * sample_rate)
+            for t in range(n_samples):
+                progress = t / n_samples
+                # Fundamental frequency drops sharply
+                freq = 600 - 350 * progress
+                # Add harmonics for growl quality - reduced intensity
+                fundamental = math.sin(2 * math.pi * freq * t / sample_rate) * 0.4
+                harmonic2 = math.sin(2 * math.pi * freq * 2 * t / sample_rate) * 0.25
+                harmonic3 = math.sin(2 * math.pi * freq * 3 * t / sample_rate) * 0.15
+                # Add noise for rough texture - reduced
+                noise = random.uniform(-0.3, 0.3)
+                amplitude = math.exp(-progress * 6) * (0.8 + 0.1 * abs(math.sin(t * 0.05)))
+                segments.append((fundamental + harmonic2 + harmonic3 + noise) * amplitude)
+            # Pause between barks
+            if bark < 3:
+                segments.extend([0] * int(0.2 * sample_rate))
+        wave = segments
+    
+    elif sound_type == 'cat':
+        # More realistic meow with vibrato and harmonics - longer meow
+        duration = 1.2
+        n_samples = int(duration * sample_rate)
+        wave = []
+        for t in range(n_samples):
+            progress = t / n_samples
+            # Rising then holding pitch with vibrato, then falling
+            if progress < 0.15:
+                base_freq = 350 + 400 * (progress / 0.15)
+            elif progress < 0.75:
+                base_freq = 750 + 25 * math.sin(t / sample_rate * math.pi * 15)  # Vibrato
+            else:
+                base_freq = 750 - 250 * ((progress - 0.75) / 0.25)
+            
+            # Multiple harmonics for cat voice - reduced intensity
+            fundamental = math.sin(2 * math.pi * base_freq * t / sample_rate) * 0.5
+            harmonic2 = math.sin(2 * math.pi * base_freq * 2.1 * t / sample_rate) * 0.25
+            harmonic3 = math.sin(2 * math.pi * base_freq * 3.2 * t / sample_rate) * 0.08
+            
+            amplitude = math.sin(progress * math.pi) * 0.85
+            wave.append((fundamental + harmonic2 + harmonic3) * amplitude)
+    
+    elif sound_type == 'owl':
+        # More realistic hoot with deeper tone and breath - triple hoot
+        duration = 0.8
+        n_samples = int(duration * sample_rate)
+        wave = []
+        for t in range(n_samples):
+            progress = t / n_samples
+            # Deep hoot with subtle frequency variation
+            freq = 200 + 15 * math.sin(t / sample_rate * math.pi * 6)
+            # Add harmonics for depth
+            fundamental = math.sin(2 * math.pi * freq * t / sample_rate) * 0.7
+            harmonic2 = math.sin(2 * math.pi * freq * 2 * t / sample_rate) * 0.2
+            # Slight breathiness
+            noise = random.uniform(-0.1, 0.1)
+            # Triple-hoot pattern
+            if progress < 0.28:
+                amplitude = math.sin(progress / 0.28 * math.pi)
+            elif progress < 0.36:
+                amplitude = 0.1
+            elif progress < 0.56:
+                amplitude = math.sin((progress - 0.36) / 0.2 * math.pi)
+            elif progress < 0.64:
+                amplitude = 0.1
+            else:
+                amplitude = math.sin((progress - 0.64) / 0.36 * math.pi)
+            
+            wave.append((fundamental + harmonic2 + noise) * amplitude * 0.9)
+    
+    elif sound_type == 'crow':
+        # Harsh caw sound - double caw
+        segments = []
+        for caw in range(2):
+            duration = 0.28
+            n_samples = int(duration * sample_rate)
+            for t in range(n_samples):
+                progress = t / n_samples
+                freq = 800 - 200 * progress
+                # Harsh harmonics for crow
+                fundamental = math.sin(2 * math.pi * freq * t / sample_rate) * 0.4
+                harmonic2 = math.sin(2 * math.pi * freq * 1.8 * t / sample_rate) * 0.3
+                harmonic3 = math.sin(2 * math.pi * freq * 2.5 * t / sample_rate) * 0.2
+                noise = random.uniform(-0.4, 0.4)
+                amplitude = math.exp(-progress * 3) * (0.9 + 0.1 * math.sin(t * 0.1))
+                segments.append((fundamental + harmonic2 + harmonic3 + noise) * amplitude)
+            # Pause between caws
+            if caw < 1:
+                segments.extend([0] * int(0.12 * sample_rate))
+        wave = segments
+    
+    elif sound_type == 'mosquito':
+        # High-pitched buzzing mosquito sound - longer duration, softer
+        duration = 3.5
+        n_samples = int(duration * sample_rate)
+        wave = []
+        for t in range(n_samples):
+            progress = t / n_samples
+            # Very high frequency with rapid modulation for buzz
+            base_freq = 600 + 200 * math.sin(progress * math.pi * 2)
+            buzz_mod = 30 * math.sin(t / sample_rate * math.pi * 80)  # Fast modulation
+            freq = base_freq + buzz_mod
+            
+            # Further reduced harmonics for softer buzzing
+            fundamental = math.sin(2 * math.pi * freq * t / sample_rate) * 0.2
+            harmonic2 = math.sin(2 * math.pi * freq * 1.8 * t / sample_rate) * 0.12
+            harmonic3 = math.sin(2 * math.pi * freq * 2.3 * t / sample_rate) * 0.08
+            # Add slight random noise for wing flutter
+            noise = random.uniform(-0.05, 0.05)
+            
+            # Softer amplitude to simulate flying closer/farther
+            amplitude = 0.3 + 0.2 * math.sin(progress * math.pi * 3)
+            wave.append((fundamental + harmonic2 + harmonic3 + noise) * amplitude)
+    
+    elif sound_type == 'rooster':
+        # Cock-a-doodle-doo pattern
+        segments = []
+        # Rising "cock-a-"
+        for freq_base in [400, 500, 650]:
+            duration = 0.08
+            n_samples = int(duration * sample_rate)
+            for t in range(n_samples):
+                progress = t / n_samples
+                freq = freq_base + 100 * progress
+                tone = math.sin(2 * math.pi * freq * t / sample_rate) * 0.7
+                amplitude = math.sin(progress * math.pi)
+                segments.append(tone * amplitude)
+            segments.extend([0] * int(0.02 * sample_rate))
+        
+        # Sustained "-doodle-doo"
+        duration = 0.15
+        n_samples = int(duration * sample_rate)
+        for t in range(n_samples):
+            progress = t / n_samples
+            freq = 900 - 200 * progress
+            tone = math.sin(2 * math.pi * freq * t / sample_rate) * 0.8
+            amplitude = 0.9
+            segments.append(tone * amplitude)
+        
+        wave = segments
+    
+    else:
+        # Default short beep
+        duration = 0.1
+        n_samples = int(duration * sample_rate)
+        wave = [math.sin(2 * math.pi * 440 * t / sample_rate) for t in range(n_samples)]
+    
+    # Convert to int16 with volume control (higher volume for voice sounds)
+    int_wave = [int(32767 * 0.5 * sample) for sample in wave]
+    
+    # Convert to stereo
+    stereo_wave = []
+    for sample in int_wave:
+        stereo_wave.extend([sample, sample])
+    
+    # Create sound from array
+    sound_array = np.array(stereo_wave, dtype=np.int16)
+    sound = pygame.mixer.Sound(sound_array)
+    return sound
 
 
 class EyeTracker:
@@ -1006,6 +1368,17 @@ class FlowerAimTrainer:
         self.misses = 0
         self.game_complete = False
         self.spawn_time = 0
+        self.last_disturbance = 0
+        
+        # Generate sounds
+        self.timeout_sound = generate_beep_sound(200, 0.2, 'sine', 'fade_both')  # Low timeout with fade
+        # Animal sounds for distraction
+        self.disturbance_sounds = [
+            generate_voice_sound('bird'),
+            generate_voice_sound('dog'),
+            generate_voice_sound('cat'),
+            generate_voice_sound('mosquito')
+        ]
         
         self._generate_flower_positions()
     
@@ -1064,6 +1437,21 @@ class FlowerAimTrainer:
     
     def _spawn_next_flower(self, screen):
         """Spawn the next flower core"""
+        # Only play disturbance sounds after 2nd flower, but skip 5th-7th flowers
+        # Allow sounds to play simultaneously with spawn for flowers 10-12
+        should_play_sound = self.current_flower_index >= 2 and not (4 <= self.current_flower_index <= 6)
+        is_final_flowers = self.current_flower_index >= 9  # Flowers 10-12 (index 9-11)
+        
+        if should_play_sound and not is_final_flowers:
+            # Play 1 misleading disturbance sound at random interval before spawning
+            num_fake_sounds = random.randint(1, 1)  # Reduced to just 1 sound
+            for _ in range(num_fake_sounds):
+                pygame.time.wait(random.randint(400, 800))  # Longer intervals
+                random.choice(self.disturbance_sounds).play()
+            
+            # Longer delay then spawn the actual flower
+            pygame.time.wait(random.randint(300, 700))  # Longer delay
+        
         self.spawn_time = time.time()
         flower = self.flowers[self.current_flower_index]
         
@@ -1079,6 +1467,13 @@ class FlowerAimTrainer:
         
         flower.draw_core(screen)
         pygame.display.flip()
+        
+        # For final flowers (10-12), play sound at the same time as spawn
+        if should_play_sound and is_final_flowers:
+            random.choice(self.disturbance_sounds).play()
+        
+        # Skip after-spawn sound to reduce frequency
+        # (Removed the after-spawn sound to make sounds less frequent)
     
     def _handle_click(self, pos, screen):
         """Handle click events"""
@@ -1111,6 +1506,10 @@ class FlowerAimTrainer:
         """Handle flower timeout"""
         current_flower = self.flowers[self.current_flower_index]
         self.misses += 1
+        
+        # Play timeout sound
+        self.timeout_sound.play()
+        
         print(f"⏱️  Timeout! Flower {self.current_flower_index + 1}/12 disappeared")
         
         # Restore the saved background to make the flower core disappear
