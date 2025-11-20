@@ -333,11 +333,12 @@ class MagicCircle:
         for overlay_shape in self.overlay_shapes:
             self._draw_geometric_overlay(screen, center_x, center_y, overlay_shape, sec_bright, sec_dim)
             pygame.display.flip()
-            clock.tick(5)
+            clock.tick(8)
         
         # Layer 4: Draw intricate web connections
         self._draw_complex_web(screen, center_x, center_y, dim_color, very_dim)
         pygame.display.flip()
+        pygame.time.wait(150)
         
         # Layer 5: Draw fractal/recursive patterns
         if self.has_fractals:
@@ -347,13 +348,15 @@ class MagicCircle:
         # Layer 6: Draw nested polygons at all vertices
         self._draw_nested_decorations(screen, center_x, center_y, bright_color, sec_bright, dim_color)
         pygame.display.flip()
+        pygame.time.wait(150)
         
         # Layer 7: Extended rays and outer decorations
         self._draw_outer_complexity(screen, center_x, center_y, bright_color, dim_color, sec_bright)
         pygame.display.flip()
+        pygame.time.wait(150)
         
         # Layer 8: Brilliant center
-        self._draw_brilliant_core(screen, center_x, center_y, bright_color)
+        self._draw_brilliant_core(screen, center_x, center_y, bright_color, clock)
         pygame.display.flip()
     
     def _draw_sacred_center(self, screen, cx, cy, bright, dim, eye_tracker, clock):
@@ -375,7 +378,7 @@ class MagicCircle:
                 pygame.draw.circle(screen, bright, (cx + px, cy + py), radius, 1)
                 # Update after each circle
                 pygame.display.flip()
-                clock.tick(5)
+                clock.tick(12)
         
         elif self.inner_pattern == 'metatron':
             # Metatron's Cube - complex overlapping geometry
@@ -433,7 +436,7 @@ class MagicCircle:
                     if math.sqrt((x - cx)**2 + (y - cy)**2) < 80:
                         pygame.draw.circle(screen, bright, (int(x), int(y)), radius, 1)
                         pygame.display.flip()
-                        clock.tick(8)
+                        clock.tick(15)
     
     def _draw_base_geometry(self, screen, cx, cy, bright, dim, very_dim, eye_tracker, start_time, clock):
         """Draw base geometric structure (polygons, not just circles)"""
@@ -487,7 +490,7 @@ class MagicCircle:
                 
                 # Update display after each spoke for continuous animation
                 pygame.display.flip()
-                clock.tick(5)
+                clock.tick(8)
     
     def _draw_polygon_layer(self, screen, cx, cy, radius, sides, bright, dim, very_dim, rotation):
         """Draw polygon shape with glow"""
@@ -731,23 +734,29 @@ class MagicCircle:
                         pygame.draw.circle(screen, dim, (dec_x, dec_y), size, 1)
                     pygame.draw.circle(screen, bright, (dec_x, dec_y), 2, 0)
     
-    def _draw_brilliant_core(self, screen, cx, cy, bright):
-        """Draw brilliant glowing center"""
-        # Multiple layers of increasing brightness - smaller core
+    def _draw_brilliant_core(self, screen, cx, cy, bright, clock):
+        """Draw brilliant glowing center with smooth animation"""
+        # Multiple layers of increasing brightness - smaller core, drawn one at a time
         for size in [12, 10, 8, 6, 4]:
             intensity = int(255 * (size / 12))
             core_color = tuple(min(255, int(c * (intensity / 255) + 255 * (1 - intensity / 255))) for c in bright)
             pygame.draw.circle(screen, core_color, (cx, cy), size, 0)
+            pygame.display.flip()
+            pygame.time.wait(200)  # 200ms pause between each layer for slower animation
         
         # Pure white center
         pygame.draw.circle(screen, (255, 255, 255), (cx, cy), 2, 0)
+        pygame.display.flip()
+        pygame.time.wait(200)
         
-        # Glowing halo rings - smaller
+        # Glowing halo rings - smaller, drawn one at a time slowly
         for halo_r in [15, 18, 22]:
             for thickness in range(1, 3):
                 alpha_val = 255 - (halo_r - 15) * 20 - thickness * 20
                 glow = tuple(max(0, int(c * alpha_val / 255)) for c in bright)
                 pygame.draw.circle(screen, glow, (cx, cy), halo_r, thickness)
+            pygame.display.flip()
+            pygame.time.wait(250)  # Longer pause for halo rings
     
     
     def _draw_symbol_at_point(self, screen, x, y, layer_idx, angle):
