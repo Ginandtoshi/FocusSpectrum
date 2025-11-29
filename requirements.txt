@@ -6,8 +6,11 @@ numpy>=1.21
 opencv-python>=4.5
 matplotlib>=3.4
 scipy>=1.7
-Pillow>=9.0
-flask>=2.0   # if you build a local web UI that proxies eye-tracker data
+flask>=2.0
+mediapipe>=0.8.9
+
+
+# if you build a local web UI that proxies eye-tracker data
 
 # Optional (for advanced gaze analysis / hardware SDKs):
 # pupil-apriltags (Pupil Labs ecosystem), pylsl (Lab Streaming Layer)
