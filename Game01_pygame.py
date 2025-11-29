@@ -4,7 +4,6 @@ An interactive experience that transforms your focus into personalized artwork.
 
 Part 1: Magic Circle Calibration - Animated symmetrical patterns for focus
 Part 2: Flower Aim Trainer - 12 blooming flowers with 1.5s timeout
-Part 3: Artistic Report - Your unique artwork combining all elements
 """
 
 import pygame
@@ -16,6 +15,7 @@ import mediapipe as mp
 from datetime import datetime
 import os
 import numpy as np
+from PIL import Image
 
 # Initialize Pygame
 pygame.init()
@@ -1129,6 +1129,9 @@ class MagicCircle:
 class Flower:
     """Flower that blooms when targeted"""
     
+    # Class variable to store the flower image (shared by all instances)
+    flower_image = None
+    
     def __init__(self, x, y, core_size=8):
         """Initialize flower at position"""
         self.x = x
@@ -1136,7 +1139,27 @@ class Flower:
         self.core_size = core_size
         self.bloomed = False
         
-        # Choose a random color scheme for variety
+        # Load flower image once (class variable)
+        if Flower.flower_image is None:
+            try:
+                # Try to load the flower image
+                image_path = os.path.join(os.path.dirname(__file__), 'flower_bloom.png')
+                if os.path.exists(image_path):
+                    pil_image = Image.open(image_path).convert('RGBA')
+                    # Resize to appropriate size
+                    pil_image = pil_image.resize((100, 100), Image.Resampling.LANCZOS)
+                    # Convert PIL image to Pygame surface
+                    mode = pil_image.mode
+                    size = pil_image.size
+                    data = pil_image.tobytes()
+                    Flower.flower_image = pygame.image.fromstring(data, size, mode)
+                    print("✓ Flower image loaded successfully!")
+                else:
+                    print("⚠ Flower image not found, using default animation")
+            except Exception as e:
+                print(f"⚠ Could not load flower image: {e}, using default animation")
+        
+        # Choose a random color scheme for variety (fallback)
         color_schemes = [
             # Pink/Rose
             [(255, 105, 180), (255, 182, 193), (255, 20, 147), (219, 112, 147),
@@ -1166,16 +1189,43 @@ class Flower:
     
     def bloom(self, screen):
         """Animate flower blooming with artistic variations"""
-        if self.bloom_style == 'classic':
-            self._bloom_classic(screen)
-        elif self.bloom_style == 'spiral':
-            self._bloom_spiral(screen)
-        elif self.bloom_style == 'layered':
-            self._bloom_layered(screen)
-        elif self.bloom_style == 'star':
-            self._bloom_star(screen)
+        if Flower.flower_image is not None:
+            # Use the loaded flower image with scale-up animation
+            self._bloom_with_image(screen)
+        else:
+            # Fallback to default animation
+            if self.bloom_style == 'classic':
+                self._bloom_classic(screen)
+            elif self.bloom_style == 'spiral':
+                self._bloom_spiral(screen)
+            elif self.bloom_style == 'layered':
+                self._bloom_layered(screen)
+            elif self.bloom_style == 'star':
+                self._bloom_star(screen)
         
         self.bloomed = True
+    
+    def _bloom_with_image(self, screen):
+        """Bloom animation using the loaded flower image"""
+        # Animate from small to full size
+        max_size = 100
+        steps = 15
+        
+        for step in range(steps + 1):
+            scale = step / steps
+            current_size = int(max_size * scale)
+            
+            if current_size > 0:
+                # Scale the image
+                scaled_image = pygame.transform.scale(Flower.flower_image, (current_size, current_size))
+                
+                # Position centered on flower core
+                rect = scaled_image.get_rect(center=(self.x, self.y))
+                
+                # Blit with alpha
+                screen.blit(scaled_image, rect)
+                pygame.display.flip()
+                pygame.time.wait(40)  # Smooth animation
     
     def _bloom_classic(self, screen):
         """Classic curved petal bloom"""
@@ -1526,173 +1576,6 @@ class FlowerAimTrainer:
             print("\n🎮 Game complete!")
 
 
-class ArtisticReport:
-    """Generate personalized artistic report"""
-    
-    def __init__(self, player_id, magic_circle, flowers, reaction_times, eye_tracker):
-        """Initialize report"""
-        self.player_id = player_id
-        self.magic_circle = magic_circle
-        self.flowers = flowers
-        self.reaction_times = reaction_times
-        self.eye_tracker = eye_tracker
-        self.tracking_accuracy = eye_tracker.calculate_accuracy()
-    
-    def generate(self, screen):
-        """Generate the artistic report"""
-        print("\n=== Part 3: Your Personalized Artwork ===")
-        
-        # Don't clear screen - keep the magic circle and flowers visible
-        # Just add statistics overlay on the left side
-        
-        # Draw semi-transparent background for text area on left
-        text_bg = pygame.Surface((400, 600))
-        text_bg.set_alpha(240)
-        text_bg.fill(GRAY)
-        screen.blit(text_bg, (20, 100))
-        
-        # Title at top center
-        font_title = pygame.font.Font(None, 44)
-        font_subtitle = pygame.font.Font(None, 28)
-        font_normal = pygame.font.Font(None, 24)
-        font_small = pygame.font.Font(None, 20)
-        font_tiny = pygame.font.Font(None, 18)
-        
-        title = font_title.render("YOUR CONCENTRATION ARTWORK", True, (44, 62, 80))
-        title_rect = title.get_rect(center=(SCREEN_WIDTH // 2, 30))
-        screen.blit(title, title_rect)
-        
-        player = font_small.render(f"Created by: {self.player_id}", True, (52, 73, 94))
-        player_rect = player.get_rect(center=(SCREEN_WIDTH // 2, 65))
-        screen.blit(player, player_rect)
-        
-        date = font_tiny.render(datetime.now().strftime('%B %d, %Y at %H:%M'), True, (127, 140, 141))
-        date_rect = date.get_rect(center=(SCREEN_WIDTH // 2, 88))
-        screen.blit(date, date_rect)
-        
-        # Draw statistics on left side
-        self._draw_statistics(screen, font_subtitle, font_normal, font_small, font_tiny)
-        
-        pygame.display.flip()
-        print("✓ Artwork generated successfully!")
-    
-    def _draw_statistics(self, screen, font_subtitle, font_normal, font_small, font_tiny):
-        """Draw performance statistics"""
-        x_left = 40
-        y = 130
-        
-        # Header
-        header = font_subtitle.render("Performance Metrics", True, (44, 62, 80))
-        screen.blit(header, (x_left, y))
-        y += 35
-        
-        # Separator line
-        pygame.draw.line(screen, (149, 165, 166), (x_left, y), (x_left + 340, y), 2)
-        y += 25
-        
-        # Part 1: Eye Tracking
-        part1_title = font_normal.render("✦ PART 1: CALIBRATION", True, (52, 152, 219))
-        screen.blit(part1_title, (x_left, y))
-        y += 30
-        
-        accuracy_label = font_small.render("Eye Tracking Accuracy:", True, (44, 62, 80))
-        screen.blit(accuracy_label, (x_left, y))
-        y += 25
-        
-        # Color based on accuracy
-        if self.tracking_accuracy >= 70:
-            acc_color = (39, 174, 96)
-        elif self.tracking_accuracy >= 50:
-            acc_color = (243, 156, 18)
-        else:
-            acc_color = (231, 76, 60)
-        
-        accuracy_value = font_subtitle.render(f"{self.tracking_accuracy:.1f}%", True, acc_color)
-        screen.blit(accuracy_value, (x_left, y))
-        y += 35
-        
-        pattern_info = font_tiny.render(
-            f"Pattern: {self.magic_circle.num_spokes} spokes, {self.magic_circle.num_layers} layers",
-            True, (44, 62, 80)
-        )
-        screen.blit(pattern_info, (x_left, y))
-        y += 40
-        
-        # Part 2: Aim Trainer
-        part2_title = font_normal.render("✦ PART 2: FLOWER BLOOMS", True, (233, 30, 99))
-        screen.blit(part2_title, (x_left, y))
-        y += 30
-        
-        bloomed_count = sum(1 for f in self.flowers if f.bloomed)
-        accuracy_pct = (bloomed_count / 12) * 100
-        
-        bloomed_label = font_small.render("Flowers Bloomed:", True, (44, 62, 80))
-        screen.blit(bloomed_label, (x_left, y))
-        y += 25
-        
-        # Color based on bloomed count
-        if bloomed_count == 12:
-            bloom_color = (39, 174, 96)
-        elif bloomed_count >= 9:
-            bloom_color = (243, 156, 18)
-        else:
-            bloom_color = (231, 76, 60)
-        
-        bloomed_value = font_subtitle.render(f"{bloomed_count}/12 ({accuracy_pct:.0f}%)", True, bloom_color)
-        screen.blit(bloomed_value, (x_left, y))
-        y += 35
-        
-        # Reaction times
-        if self.reaction_times:
-            avg_reaction = sum(self.reaction_times) / len(self.reaction_times)
-            best_reaction = min(self.reaction_times)
-            
-            reaction_label = font_small.render("Avg Reaction Time:", True, (44, 62, 80))
-            screen.blit(reaction_label, (x_left, y))
-            y += 25
-            
-            if avg_reaction < 0.5:
-                reaction_color = (39, 174, 96)
-            elif avg_reaction < 0.8:
-                reaction_color = (243, 156, 18)
-            else:
-                reaction_color = (231, 76, 60)
-            
-            reaction_value = font_subtitle.render(f"{avg_reaction:.3f}s", True, reaction_color)
-            screen.blit(reaction_value, (x_left, y))
-            y += 30
-            
-            best_label = font_tiny.render(f"Best: {best_reaction:.3f}s", True, (127, 140, 141))
-            screen.blit(best_label, (x_left, y))
-            y += 25
-        
-        # Overall assessment
-        y += 15
-        pygame.draw.line(screen, (149, 165, 166), (x_left, y), (x_left + 340, y), 1)
-        y += 20
-        
-        assessment_title = font_normal.render("Overall Assessment:", True, (44, 62, 80))
-        screen.blit(assessment_title, (x_left, y))
-        y += 30
-        
-        # Determine assessment
-        if bloomed_count == 12 and self.tracking_accuracy >= 70:
-            assessment = "Outstanding!"
-            assess_color = (39, 174, 96)
-        elif bloomed_count >= 9 and self.tracking_accuracy >= 50:
-            assessment = "Great Work!"
-            assess_color = (52, 152, 219)
-        elif bloomed_count >= 6:
-            assessment = "Good Effort!"
-            assess_color = (243, 156, 18)
-        else:
-            assessment = "Keep Practicing!"
-            assess_color = (231, 76, 60)
-        
-        assessment_text = font_normal.render(assessment, True, assess_color)
-        screen.blit(assessment_text, (x_left, y))
-
-
 class ConcentrationArtGame:
     """Main game controller"""
     
@@ -1720,16 +1603,6 @@ class ConcentrationArtGame:
         # Part 2: Flower Aim Trainer (flowers appear ON the magic circle)
         self.aim_trainer = FlowerAimTrainer(self.magic_circle.pattern_points, self.eye_tracker)
         self.aim_trainer.play(self.screen)
-        
-        # Part 3: Artistic Report
-        self.report = ArtisticReport(
-            self.player_id,
-            self.magic_circle,
-            self.aim_trainer.flowers,
-            self.aim_trainer.reaction_times,
-            self.eye_tracker
-        )
-        self.report.generate(self.screen)
         
         print("\n" + "=" * 60)
         print("Thank you for creating art with us! 🎨✨")
