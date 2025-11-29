@@ -1115,6 +1115,10 @@ class EyeTracker:
         self.LEFT_IRIS = [468, 469, 470, 471, 472]
         self.RIGHT_IRIS = [473, 474, 475, 476, 477]
         
+        # 关键点索引：外眼角，内眼角，上眼睑，下眼睑，虹膜中心
+        self.LEFT_EYE_POINTS = [33, 133, 159, 145, 468]
+        self.RIGHT_EYE_POINTS = [263, 362, 386, 374, 473]
+        
         # 瞳孔历史追踪
         self.left_pupil_history = []
         self.right_pupil_history = []
@@ -1132,11 +1136,41 @@ class EyeTracker:
         self.baseline_required_frames = 30  # 需要30帧来建立基准
         
         # 分心阈值（归一化坐标偏移）
-        self.distraction_threshold = 0.02
+        self.distraction_threshold = 0.15
         self.is_distracted = False
         
         self.camera_available = self.cap.isOpened()
     
+    def _get_gaze_ratio(self, landmarks, points):
+        """计算单眼凝视比率"""
+        outer_idx, inner_idx, top_idx, bottom_idx, iris_idx = points
+        
+        # 获取坐标
+        p_outer = landmarks[outer_idx]
+        p_inner = landmarks[inner_idx]
+        p_top = landmarks[top_idx]
+        p_bottom = landmarks[bottom_idx]
+        p_iris = landmarks[iris_idx]
+        
+        # 水平比率
+        min_x = min(p_outer.x, p_inner.x)
+        max_x = max(p_outer.x, p_inner.x)
+        width = max_x - min_x
+        
+        if width == 0:
+            rx = 0.5
+        else:
+            rx = (p_iris.x - min_x) / width
+            
+        # 垂直比率
+        height = p_bottom.y - p_top.y
+        if height == 0:
+            ry = 0.5
+        else:
+            ry = (p_iris.y - p_top.y) / height
+            
+        return rx, ry
+
     def update(self):
         """更新眼动追踪，返回凝视点坐标"""
         if not self.camera_available:
@@ -1159,43 +1193,48 @@ class EyeTracker:
         
         if results.multi_face_landmarks:
             face_landmarks = results.multi_face_landmarks[0]
+            landmarks = face_landmarks.landmark
             
-            # 获取左右眼瞳孔中心点（虹膜landmark的中心点：468和473）
-            left_pupil_x = face_landmarks.landmark[468].x
-            left_pupil_y = face_landmarks.landmark[468].y
+            # 计算左右眼凝视比率
+            lx, ly = self._get_gaze_ratio(landmarks, self.LEFT_EYE_POINTS)
+            rx, ry = self._get_gaze_ratio(landmarks, self.RIGHT_EYE_POINTS)
             
-            right_pupil_x = face_landmarks.landmark[473].x
-            right_pupil_y = face_landmarks.landmark[473].y
+            # 平均比率
+            avg_ratio_x = (lx + rx) / 2
+            avg_ratio_y = (ly + ry) / 2
             
-            # 平均两只眼睛的瞳孔位置（归一化坐标）
-            avg_pupil_x = (left_pupil_x + right_pupil_x) / 2
-            avg_pupil_y = (left_pupil_y + right_pupil_y) / 2
+            # 应用灵敏度调整 (放大比率变化以覆盖全屏)
+            sensitivity = 2.5
+            avg_ratio_x = 0.5 + (avg_ratio_x - 0.5) * sensitivity
+            avg_ratio_y = 0.5 + (avg_ratio_y - 0.5) * sensitivity
             
             # 建立基准位置（前30帧的平均值）
             if self.baseline_pupil_x is None:
-                self.baseline_pupil_x = avg_pupil_x
-                self.baseline_pupil_y = avg_pupil_y
+                self.baseline_pupil_x = avg_ratio_x
+                self.baseline_pupil_y = avg_ratio_y
                 self.baseline_frames = 1
             elif self.baseline_frames < self.baseline_required_frames:
                 # 累积平均
-                self.baseline_pupil_x = (self.baseline_pupil_x * self.baseline_frames + avg_pupil_x) / (self.baseline_frames + 1)
-                self.baseline_pupil_y = (self.baseline_pupil_y * self.baseline_frames + avg_pupil_y) / (self.baseline_frames + 1)
+                self.baseline_pupil_x = (self.baseline_pupil_x * self.baseline_frames + avg_ratio_x) / (self.baseline_frames + 1)
+                self.baseline_pupil_y = (self.baseline_pupil_y * self.baseline_frames + avg_ratio_y) / (self.baseline_frames + 1)
                 self.baseline_frames += 1
             
             # 计算与基准位置的偏移（归一化坐标）
             if self.baseline_frames >= self.baseline_required_frames:
-                offset_x = abs(avg_pupil_x - self.baseline_pupil_x)
-                offset_y = abs(avg_pupil_y - self.baseline_pupil_y)
+                offset_x = abs(avg_ratio_x - self.baseline_pupil_x)
+                offset_y = abs(avg_ratio_y - self.baseline_pupil_y)
                 total_offset = (offset_x ** 2 + offset_y ** 2) ** 0.5
                 
                 # 判断是否分心（偏离超过阈值）
                 self.is_distracted = total_offset > self.distraction_threshold
+                print("Distracted:", self.is_distracted, "Offset:", total_offset)
             else:
+                print("Calibrating... Frame", self.baseline_frames)
                 self.is_distracted = False
             
-            # 将归一化坐标映射到屏幕坐标（翻转x轴以匹配自拍视角）
-            self.gaze_x = int((1.0 - avg_pupil_x) * SCREEN_WIDTH)
-            self.gaze_y = int(avg_pupil_y * SCREEN_HEIGHT)
+            # 将归一化坐标映射到屏幕坐标
+            self.gaze_x = int(avg_ratio_x * SCREEN_WIDTH)
+            self.gaze_y = int(avg_ratio_y * SCREEN_HEIGHT)
             
             # 限制范围
             self.gaze_x = max(0, min(SCREEN_WIDTH, self.gaze_x))
