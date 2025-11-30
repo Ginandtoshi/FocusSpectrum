@@ -55,7 +55,21 @@ class Framework:
             
             # 2. Camera Background
             # We draw the camera frame FIRST, so it's the background
-            cam_surface = self.camera.get_pygame_surface()
+            # Update Eye Tracker with current frame to get annotated frame
+            current_frame = self.camera.get_frame()
+            if current_frame is not None:
+                self.eye_tracker.process_frame(current_frame)
+                
+                # Get annotated frame for visualization
+                annotated_frame = self.eye_tracker.get_annotated_frame()
+                if annotated_frame is not None:
+                    # Convert to Pygame surface
+                    cam_surface = pygame.image.frombuffer(annotated_frame.tobytes(), (annotated_frame.shape[1], annotated_frame.shape[0]), "RGB")
+                else:
+                    cam_surface = self.camera.get_pygame_surface()
+            else:
+                cam_surface = None
+
             if cam_surface:
                 self.screen.blit(cam_surface, (0, 0))
             else:

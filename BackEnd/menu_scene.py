@@ -26,26 +26,32 @@ class MenuScene(Scene):
         # Button definitions
         self.btn_width = 400
         self.btn_height = 100
-        self.spacing = 40  # Reduced spacing slightly to ensure fit
+        self.spacing = 40
         
         screen_width, screen_height = pygame.display.get_surface().get_size()
         center_x = screen_width // 2
         
-        # Calculate total height for 4 buttons to ensure we have space
-        # But center based on 3 buttons initially so it looks good before completion
-        # We shift it up slightly so the 4th button fits comfortably
-        total_btn_height_3 = 3 * self.btn_height + 2 * self.spacing
+        # Calculate layout for vertical centering
+        # Content: Title (approx 70px) + Gap (50px) + 3 Buttons (3*100 + 2*40 = 380px)
+        # Total Height = 70 + 50 + 380 = 500
         
-        # Center of the screen minus half the button group height
-        # Shift up by 30px to allow room for the 4th button later
-        start_y = (screen_height - total_btn_height_3) // 2 - 20
+        title_height = 70
+        title_btn_gap = 50
+        buttons_block_height = 3 * self.btn_height + 2 * self.spacing
         
-        self.btn_game1 = pygame.Rect(center_x - self.btn_width//2, start_y, self.btn_width, self.btn_height)
-        self.btn_game2 = pygame.Rect(center_x - self.btn_width//2, start_y + self.btn_height + self.spacing, self.btn_width, self.btn_height)
-        self.btn_game3 = pygame.Rect(center_x - self.btn_width//2, start_y + 2*(self.btn_height + self.spacing), self.btn_width, self.btn_height)
+        total_content_height = title_height + title_btn_gap + buttons_block_height
         
-        # Report Button (Initially hidden or placed below)
-        self.btn_report = pygame.Rect(center_x - self.btn_width//2, start_y + 3*(self.btn_height + self.spacing), self.btn_width, self.btn_height)
+        start_y_offset = (screen_height - total_content_height) // 2
+        
+        self.title_y = start_y_offset
+        btn_start_y = self.title_y + title_height + title_btn_gap
+        
+        self.btn_game1 = pygame.Rect(center_x - self.btn_width//2, btn_start_y, self.btn_width, self.btn_height)
+        self.btn_game2 = pygame.Rect(center_x - self.btn_width//2, btn_start_y + self.btn_height + self.spacing, self.btn_width, self.btn_height)
+        self.btn_game3 = pygame.Rect(center_x - self.btn_width//2, btn_start_y + 2*(self.btn_height + self.spacing), self.btn_width, self.btn_height)
+        
+        # Report Button (Placed below Game 3)
+        self.btn_report = pygame.Rect(center_x - self.btn_width//2, btn_start_y + 3*(self.btn_height + self.spacing), self.btn_width, self.btn_height)
 
     def on_enter(self):
         print("Entering Menu Scene")
@@ -55,19 +61,19 @@ class MenuScene(Scene):
         
         # Title
         title = self.title_font.render("Select a Game", True, (255, 255, 255))
-        screen.blit(title, (screen_width//2 - title.get_width()//2, 70))
+        screen.blit(title, (screen_width//2 - title.get_width()//2, self.title_y))
         
         # Check completion status
         completed = self.manager.data.get("completed_games", [])
         
         # Draw Game 1 Button
-        self._draw_button(screen, self.btn_game1, "Game 1: Plant", "game1" in completed)
+        self._draw_button(screen, self.btn_game1, "Game 1: Blossom", "game1" in completed)
         
         # Draw Game 2 Button
         self._draw_button(screen, self.btn_game2, "Game 2: Metaball", "game2" in completed)
 
         # Draw Game 3 Button
-        self._draw_button(screen, self.btn_game3, "Game 3: Text", "game3" in completed)
+        self._draw_button(screen, self.btn_game3, "Game 3: Letter", "game3" in completed)
         
         # Draw Report Button if all games completed
         if len(completed) >= 3: # Assuming 3 games
@@ -80,16 +86,17 @@ class MenuScene(Scene):
             bg_color = (100, 100, 100)
             border_color = (150, 150, 150)
             text_color = (200, 200, 200)
+            pygame.draw.rect(screen, bg_color, rect, border_radius=15)
         elif override_color:
-            bg_color = override_color
-            border_color = (255, 255, 255)
-            text_color = (0, 0, 0)
+            # Transparent background, colored border/text
+            border_color = override_color
+            text_color = override_color
         else:
-            bg_color = (0, 150, 0)
+            # Transparent background, white border/text
             border_color = (255, 255, 255)
             text_color = (255, 255, 255)
         
-        pygame.draw.rect(screen, bg_color, rect, border_radius=15)
+        # Draw Border
         pygame.draw.rect(screen, border_color, rect, 3, border_radius=15)
         
         label = self.font.render(text, True, text_color)

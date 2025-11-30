@@ -17,179 +17,19 @@ if parent_dir not in sys.path:
 
 from scene_base import Scene
 
-# --- Sound Generation Functions ---
-def generate_beep_sound(frequency=440, duration=0.1, waveform='sine', envelope='flat'):
-    """Generate a beep sound with various waveforms and envelopes"""
+# --- Sound Generation Functions (Kept as fallback) ---
+def generate_beep_sound(frequency=440, duration=0.1):
     sample_rate = 22050
     n_samples = int(duration * sample_rate)
-    
-    # Generate waveform
-    if waveform == 'sine':
-        wave = [math.sin(2 * math.pi * frequency * t / sample_rate) for t in range(n_samples)]
-    elif waveform == 'square':
-        wave = [1.0 if math.sin(2 * math.pi * frequency * t / sample_rate) > 0 else -1.0 for t in range(n_samples)]
-    elif waveform == 'triangle':
-        wave = [2 * abs(2 * ((frequency * t / sample_rate) % 1) - 1) - 1 for t in range(n_samples)]
-    elif waveform == 'sawtooth':
-        wave = [2 * ((frequency * t / sample_rate) % 1) - 1 for t in range(n_samples)]
-    elif waveform == 'chirp':  # Frequency sweep
-        end_freq = frequency * 1.5
-        wave = [math.sin(2 * math.pi * (frequency + (end_freq - frequency) * t / n_samples) * t / sample_rate) 
-                for t in range(n_samples)]
-    else:
-        wave = [math.sin(2 * math.pi * frequency * t / sample_rate) for t in range(n_samples)]
-    
-    # Apply envelope
-    for i in range(n_samples):
-        if envelope == 'fade_in':
-            wave[i] *= min(1.0, i / (n_samples * 0.3))
-        elif envelope == 'fade_out':
-            wave[i] *= min(1.0, (n_samples - i) / (n_samples * 0.3))
-        elif envelope == 'fade_both':
-            fade_in = min(1.0, i / (n_samples * 0.2))
-            fade_out = min(1.0, (n_samples - i) / (n_samples * 0.2))
-            wave[i] *= fade_in * fade_out
-        elif envelope == 'pulse':
-            # Create pulsing effect
-            pulse_freq = 10
-            wave[i] *= 0.5 + 0.5 * abs(math.sin(2 * math.pi * pulse_freq * i / sample_rate))
-    
-    # Convert to int16 with volume control
+    wave = [math.sin(2 * math.pi * frequency * t / sample_rate) for t in range(n_samples)]
     int_wave = [int(32767 * 0.3 * sample) for sample in wave]
-    
-    # Convert to stereo
     stereo_wave = []
     for sample in int_wave:
         stereo_wave.extend([sample, sample])
-    
-    # Create sound from array
     sound_array = np.array(stereo_wave, dtype=np.int16)
-    sound = pygame.mixer.Sound(sound_array)
-    return sound
+    return pygame.mixer.Sound(sound_array)
 
-def generate_voice_sound(sound_type='laugh'):
-    """Generate synthesized human/animal sounds"""
-    sample_rate = 22050
-    
-    if sound_type == 'laugh':
-        # Ha-ha-ha pattern with varying pitch
-        segments = []
-        for i in range(3):
-            duration = 0.12
-            n_samples = int(duration * sample_rate)
-            freq = 280 + i * 20
-            wave = [math.sin(2 * math.pi * freq * t / sample_rate) * 
-                   (1 - abs(t / n_samples - 0.5) * 2) for t in range(n_samples)]
-            segments.extend(wave)
-            if i < 2:
-                segments.extend([0] * int(0.05 * sample_rate))  # Pause
-        wave = segments
-    
-    elif sound_type == 'bird':
-        # More realistic chirping with rapid trills - extended
-        duration = 1.2
-        n_samples = int(duration * sample_rate)
-        wave = []
-        for t in range(n_samples):
-            progress = t / n_samples
-            # Multiple harmonics for richer bird sound with more complex pattern
-            freq1 = 2200 + 600 * math.sin(progress * math.pi * 12)
-            freq2 = 3400 + 400 * math.sin(progress * math.pi * 18)
-            tone1 = math.sin(2 * math.pi * freq1 * t / sample_rate) * 0.45
-            tone2 = math.sin(2 * math.pi * freq2 * t / sample_rate) * 0.3
-            amplitude = math.sin(progress * math.pi) * (0.7 + 0.15 * random.random())
-            wave.append((tone1 + tone2) * amplitude)
-    
-    elif sound_type == 'dog':
-        # More realistic bark - aggressive with harmonics - extended with multiple barks
-        segments = []
-        # Create 4 barks
-        for bark in range(4):
-            duration = 0.28
-            n_samples = int(duration * sample_rate)
-            for t in range(n_samples):
-                progress = t / n_samples
-                # Fundamental frequency drops sharply
-                freq = 600 - 350 * progress
-                # Add harmonics for growl quality - reduced intensity
-                fundamental = math.sin(2 * math.pi * freq * t / sample_rate) * 0.4
-                harmonic2 = math.sin(2 * math.pi * freq * 2 * t / sample_rate) * 0.25
-                harmonic3 = math.sin(2 * math.pi * freq * 3 * t / sample_rate) * 0.15
-                # Add noise for rough texture - reduced
-                noise = random.uniform(-0.3, 0.3)
-                amplitude = math.exp(-progress * 6) * (0.8 + 0.1 * abs(math.sin(t * 0.05)))
-                segments.append((fundamental + harmonic2 + harmonic3 + noise) * amplitude)
-            # Pause between barks
-            if bark < 3:
-                segments.extend([0] * int(0.2 * sample_rate))
-        wave = segments
-    
-    elif sound_type == 'cat':
-        # More realistic meow with vibrato and harmonics - longer meow
-        duration = 1.2
-        n_samples = int(duration * sample_rate)
-        wave = []
-        for t in range(n_samples):
-            progress = t / n_samples
-            # Rising then holding pitch with vibrato, then falling
-            if progress < 0.15:
-                base_freq = 350 + 400 * (progress / 0.15)
-            elif progress < 0.75:
-                base_freq = 750 + 25 * math.sin(t / sample_rate * math.pi * 15)  # Vibrato
-            else:
-                base_freq = 750 - 250 * ((progress - 0.75) / 0.25)
-            
-            # Multiple harmonics for cat voice - reduced intensity
-            fundamental = math.sin(2 * math.pi * base_freq * t / sample_rate) * 0.5
-            harmonic2 = math.sin(2 * math.pi * base_freq * 2.1 * t / sample_rate) * 0.25
-            harmonic3 = math.sin(2 * math.pi * base_freq * 3.2 * t / sample_rate) * 0.08
-            
-            amplitude = math.sin(progress * math.pi) * 0.85
-            wave.append((fundamental + harmonic2 + harmonic3) * amplitude)
-    
-    elif sound_type == 'mosquito':
-        # High-pitched buzzing mosquito sound - longer duration, softer
-        duration = 3.5
-        n_samples = int(duration * sample_rate)
-        wave = []
-        for t in range(n_samples):
-            progress = t / n_samples
-            # Very high frequency with rapid modulation for buzz
-            base_freq = 600 + 200 * math.sin(progress * math.pi * 2)
-            buzz_mod = 30 * math.sin(t / sample_rate * math.pi * 80)  # Fast modulation
-            freq = base_freq + buzz_mod
-            
-            # Further reduced harmonics for softer buzzing
-            fundamental = math.sin(2 * math.pi * freq * t / sample_rate) * 0.2
-            harmonic2 = math.sin(2 * math.pi * freq * 1.8 * t / sample_rate) * 0.12
-            harmonic3 = math.sin(2 * math.pi * freq * 2.3 * t / sample_rate) * 0.08
-            # Add slight random noise for wing flutter
-            noise = random.uniform(-0.05, 0.05)
-            
-            # Softer amplitude to simulate flying closer/farther
-            amplitude = 0.3 + 0.2 * math.sin(progress * math.pi * 3)
-            wave.append((fundamental + harmonic2 + harmonic3 + noise) * amplitude)
-    
-    else:
-        # Default short beep
-        duration = 0.1
-        n_samples = int(duration * sample_rate)
-        wave = [math.sin(2 * math.pi * 440 * t / sample_rate) for t in range(n_samples)]
-    
-    # Convert to int16 with volume control (higher volume for voice sounds)
-    int_wave = [int(32767 * 0.5 * sample) for sample in wave]
-    
-    # Convert to stereo
-    stereo_wave = []
-    for sample in int_wave:
-        stereo_wave.extend([sample, sample])
-    
-    # Create sound from array
-    sound_array = np.array(stereo_wave, dtype=np.int16)
-    sound = pygame.mixer.Sound(sound_array)
-    return sound
-
-# --- Magic Circle (Adapted for non-blocking) ---
+# --- Magic Circle ---
 class MagicCircle:
     def __init__(self, player_id, center_x=600, center_y=400):
         self.player_id = player_id
@@ -200,16 +40,15 @@ class MagicCircle:
         
         # Core geometric shape
         self.base_shape = random.choice(['circle', 'triangle', 'square', 'pentagon', 'hexagon', 'octagon', 'star'])
-        self.shape_sides = {
-            'triangle': 3, 'square': 4, 'pentagon': 5, 
-            'hexagon': 6, 'octagon': 8, 'star': 5, 'circle': 12
-        }[self.base_shape]
         
         # Pattern parameters
         self.num_spokes = random.choice([8, 12, 16])
         self.num_layers = random.randint(4, 6)
         self.base_radius = random.randint(40, 50)
         self.layer_spacing = random.randint(20, 28)
+        
+        # Calculate outer radius for constraints
+        self.outer_radius = self.base_radius + (self.num_layers * self.layer_spacing)
         
         # Layer types
         self.layer_types = []
@@ -230,7 +69,7 @@ class MagicCircle:
         self.animation_start_time = time.time()
         self.pattern_points = []
         
-        # Pre-calculate points for aim trainer
+        # Pre-calculate points
         self._generate_pattern_points()
 
     def _generate_color(self):
@@ -254,14 +93,20 @@ class MagicCircle:
         center_x, center_y = self.center_x, self.center_y
         angle_step = 360 / self.num_spokes
         
-        # Generate points at the outer edge of the pattern
-        outer_radius = self.base_radius + (self.num_layers * self.layer_spacing)
-        
         for i in range(self.num_spokes):
             angle = i * angle_step + self.rotation_offset
-            x = center_x + int(outer_radius * math.cos(math.radians(angle)))
-            y = center_y + int(outer_radius * math.sin(math.radians(angle)))
+            x = center_x + int(self.outer_radius * math.cos(math.radians(angle)))
+            y = center_y + int(self.outer_radius * math.sin(math.radians(angle)))
             self.pattern_points.append((x, y))
+
+    def get_random_point_inside(self):
+        # Generate random point within the circle
+        angle = random.uniform(0, 360)
+        # Square root for uniform distribution
+        r = math.sqrt(random.random()) * (self.outer_radius - 40) # -40 padding to keep flowers fully inside
+        x = self.center_x + int(r * math.cos(math.radians(angle)))
+        y = self.center_y + int(r * math.sin(math.radians(angle)))
+        return x, y
 
     def draw(self, screen):
         center_x, center_y = self.center_x, self.center_y
@@ -293,32 +138,24 @@ class MagicCircle:
                 
         # Draw spokes
         angle_step = 360 / self.num_spokes
-        outer_radius = self.base_radius + (self.num_layers * self.layer_spacing)
         for i in range(self.num_spokes):
             angle = i * angle_step + self.rotation_offset + elapsed * 5
-            end_x = center_x + int(outer_radius * math.cos(math.radians(angle)))
-            end_y = center_y + int(outer_radius * math.sin(math.radians(angle)))
+            end_x = center_x + int(self.outer_radius * math.cos(math.radians(angle)))
+            end_y = center_y + int(self.outer_radius * math.sin(math.radians(angle)))
             pygame.draw.line(screen, self.tertiary_color, (center_x, center_y), (end_x, end_y), 1)
 
-# --- Flower (Using Assets or Procedural) ---
+# --- Flower ---
 class Flower:
-    def __init__(self, x, y, assets=None):
+    def __init__(self, x, y, image=None):
         self.x = x
         self.y = y
-        self.assets = assets
         self.bloomed = False
         self.bloom_start_time = 0
         self.core_size = 15
-        self.image = random.choice(assets) if assets else None
+        self.image = image
         
-        # Procedural fallback colors
-        color_schemes = [
-            [(255, 105, 180), (255, 182, 193), (255, 20, 147)], # Pink
-            [(186, 85, 211), (221, 160, 221), (147, 112, 219)], # Purple
-            [(255, 127, 80), (255, 160, 122), (255, 99, 71)],   # Orange
-            [(135, 206, 250), (173, 216, 230), (100, 149, 237)] # Blue
-        ]
-        self.petal_colors = random.choice(color_schemes)
+        # Fallback colors
+        self.petal_colors = [(255, 105, 180), (255, 182, 193), (255, 20, 147)]
 
     def draw_core(self, screen):
         # Draw the target core
@@ -337,14 +174,14 @@ class Flower:
             
             if self.image:
                 # Asset based drawing
-                w = int(self.image.get_width() * scale * 0.5)
-                h = int(self.image.get_height() * scale * 0.5)
+                w = int(self.image.get_width() * scale * 0.2)
+                h = int(self.image.get_height() * scale * 0.2)
                 if w > 0 and h > 0:
                     scaled_img = pygame.transform.scale(self.image, (w, h))
                     rect = scaled_img.get_rect(center=(self.x, self.y))
                     screen.blit(scaled_img, rect)
             else:
-                # Procedural drawing (Layered bloom)
+                # Procedural drawing (Fallback)
                 for i, color in enumerate(self.petal_colors):
                     radius = int((30 - i * 8) * scale)
                     if radius > 0:
@@ -363,11 +200,26 @@ class Game1Scene(Scene):
         self.screen_width, self.screen_height = pygame.display.get_surface().get_size()
         self.magic_circle = MagicCircle(self.player_id, self.screen_width // 2, self.screen_height // 2)
         
-        # Load Assets
-        self.flower_assets = self._load_assets()
+        # Load Flower Asset
+        asset_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'Asset', 'flower.gif')
+        try:
+            self.flower_img = pygame.image.load(asset_path).convert_alpha()
+        except:
+            print(f"Failed to load flower asset at {asset_path}")
+            self.flower_img = None
+            
+        # Load Sounds
+        self.bg_sounds = []
+        sound_files = ['car-honk.mp3', 'dog-bark.mp3', 'running.mp3']
+        for sf in sound_files:
+            path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'Asset', sf)
+            try:
+                self.bg_sounds.append(pygame.mixer.Sound(path))
+            except:
+                print(f"Failed to load sound {sf}")
         
         # Game State
-        self.state = "CALIBRATION" # CALIBRATION, GAME, REPORT
+        self.state = "GAME" # GAME, REPORT
         self.state_timer = time.time()
         
         # Game Logic
@@ -379,18 +231,18 @@ class Game1Scene(Scene):
         self.last_flower_spawn_time = 0
         self.reaction_times = []
         
+        # Distraction Tracking
+        self.distracted_time = 0
+        self.game_start_time = 0
+        self.last_frame_time = 0
+        self.final_distracted_rate = 0.0 # Store final rate
+        
         # Sounds
         self.timeout_sound = generate_beep_sound(200, 0.2)
         self.success_sound = generate_beep_sound(880, 0.1)
-        self.disturbance_sounds = [
-            generate_voice_sound('bird'),
-            generate_voice_sound('dog'),
-            generate_voice_sound('cat'),
-            generate_voice_sound('mosquito')
-        ]
+        self.active_channels = []
         
         # Exit Button
-        self.screen_width, self.screen_height = pygame.display.get_surface().get_size()
         self.exit_btn_rect = pygame.Rect(self.screen_width - 120, self.screen_height - 60, 100, 40)
         
         # Load Algerian Font
@@ -403,48 +255,26 @@ class Game1Scene(Scene):
             self.font = pygame.font.SysFont("Arial", 40)
             self.small_font = pygame.font.SysFont("Arial", 24)
 
-    def _load_assets(self):
-        assets = []
-        base_path = os.path.dirname(os.path.abspath(__file__))
-        search_paths = [
-            os.path.join(base_path, "assets"),
-            base_path,
-            os.path.join(base_path, "../../Asset"),
-            os.path.join(base_path, "../../../Asset")
-        ]
-        
-        for path in search_paths:
-            if os.path.exists(path):
-                for f in os.listdir(path):
-                    if f.lower().endswith('.png') or f.lower().endswith('.jpg'):
-                        try:
-                            img = pygame.image.load(os.path.join(path, f)).convert_alpha()
-                            assets.append(img)
-                        except:
-                            pass
-        return assets
-
     def on_enter(self):
         print("Entering Game 1: Plant MeiLam")
-        self.state = "CALIBRATION"
+        self.state = "GAME"
         self.state_timer = time.time()
         
-        # Initialize flowers positions
+        # Initialize flowers positions (20 flowers)
         self.flowers = []
-        points = self.magic_circle.pattern_points[:]
-        random.shuffle(points)
-        
-        # Ensure we have 12 flowers
-        center_x, center_y = self.screen_width // 2, self.screen_height // 2
-        for i in range(12):
-            if i < len(points):
-                x, y = points[i]
-            else:
-                angle = random.uniform(0, 360)
-                radius = random.uniform(50, 200)
-                x = center_x + int(radius * math.cos(math.radians(angle)))
-                y = center_y + int(radius * math.sin(math.radians(angle)))
-            self.flowers.append(Flower(x, y, self.flower_assets))
+        for _ in range(20):
+            x, y = self.magic_circle.get_random_point_inside()
+            self.flowers.append(Flower(x, y, self.flower_img))
+            
+        self.game_start_time = time.time()
+        self.last_frame_time = time.time()
+        self.last_flower_spawn_time = time.time()
+        self.distracted_time = 0
+        self.score = 0
+        self.misses = 0
+        self.reaction_times = []
+        self.current_flower_idx = 0
+        self.final_distracted_rate = 0.0
 
     def update(self):
         # Update Eye Tracking via Framework
@@ -452,23 +282,35 @@ class Game1Scene(Scene):
             self.manager.eye_tracker.process_frame(self.manager.camera.current_frame)
         
         current_time = time.time()
+        dt = current_time - self.last_frame_time
+        self.last_frame_time = current_time
         
         # State Machine
-        if self.state == "CALIBRATION":
-            # Show magic circle for 5 seconds
-            if current_time - self.state_timer > 5.0:
-                self.state = "GAME"
-                self.current_flower_idx = 0
-                self.last_flower_spawn_time = current_time
-                print("Starting Game Phase")
+        if self.state == "GAME":
+            # Distraction Logic (Based on Eye State: Center = Focused)
+            is_focused = False
+            if hasattr(self.manager, 'eye_tracker') and hasattr(self.manager.eye_tracker, 'gaze'):
+                # is_center() returns True only if pupils located AND looking center
+                if self.manager.eye_tracker.gaze.is_center():
+                    is_focused = True
+            
+            if not is_focused:
+                self.distracted_time += dt
 
-        elif self.state == "GAME":
             if self.current_flower_idx < len(self.flowers):
-                # Disturbance sounds logic
-                if self.current_flower_idx >= 2 and not (4 <= self.current_flower_idx <= 6):
-                     # Simple random chance for disturbance
-                     if random.random() < 0.02: # Low chance per frame
-                         random.choice(self.disturbance_sounds).play()
+                # Sound Logic (After 6th flower)
+                if self.current_flower_idx >= 5 and self.bg_sounds:
+                    # Clean up finished channels
+                    self.active_channels = [ch for ch in self.active_channels if ch.get_busy()]
+                    
+                    if len(self.active_channels) < 3:
+                        if random.random() < 0.02: # Chance to play sound
+                            snd = random.choice(self.bg_sounds)
+                            # Only play if this specific sound is not already playing
+                            if snd.get_num_channels() == 0:
+                                ch = snd.play()
+                                if ch:
+                                    self.active_channels.append(ch)
 
                 # Check timeout
                 if current_time - self.last_flower_spawn_time > self.flower_timeout:
@@ -480,10 +322,25 @@ class Game1Scene(Scene):
                 # Game Over
                 self.state = "REPORT"
                 self.state_timer = current_time
+                
+                # Stop all sounds
+                for s in self.bg_sounds:
+                    s.stop()
+                self.timeout_sound.stop()
+                self.success_sound.stop()
+                
+                # Calculate Final Distraction Rate
+                total_game_time = current_time - self.game_start_time
+                if total_game_time > 0:
+                    self.final_distracted_rate = (self.distracted_time / total_game_time) * 100
+                else:
+                    self.final_distracted_rate = 0.0
+                
                 self.manager.data["scores"]["game1"] = {
                     "score": self.score,
                     "misses": self.misses,
-                    "reaction_times": self.reaction_times
+                    "reaction_times": self.reaction_times,
+                    "distracted_rate": self.final_distracted_rate
                 }
 
         elif self.state == "REPORT":
@@ -537,11 +394,7 @@ class Game1Scene(Scene):
         exit_text = self.small_font.render("EXIT", True, (255, 255, 255))
         screen.blit(exit_text, (self.exit_btn_rect.centerx - exit_text.get_width()//2, self.exit_btn_rect.centery - exit_text.get_height()//2))
         
-        if self.state == "CALIBRATION":
-            text = self.font.render("Calibrating... Relax your eyes", True, (255, 255, 255))
-            screen.blit(text, (self.screen_width // 2 - text.get_width()//2, 100))
-            
-        elif self.state == "GAME":
+        if self.state == "GAME":
             # Draw bloomed flowers
             for i in range(self.current_flower_idx):
                 if self.flowers[i].bloomed:
@@ -576,51 +429,54 @@ class Game1Scene(Scene):
                 pygame.draw.circle(screen, (0, 255, 0), (int(gaze[0]), int(gaze[1])), 10)
 
     def _draw_report(self, screen):
+        # Center Popup
+        popup_width = 600
+        popup_height = 500
+        popup_x = (self.screen_width - popup_width) // 2
+        popup_y = (self.screen_height - popup_height) // 2
+        
+        # Draw semi-transparent background
         s = pygame.Surface((self.screen_width, self.screen_height), pygame.SRCALPHA)
         s.fill((0, 0, 0, 150))
         screen.blit(s, (0, 0))
         
-        # Draw semi-transparent background for text area on left
-        bg_height = self.screen_height - 200
-        text_bg = pygame.Surface((400, bg_height))
-        text_bg.set_alpha(240)
-        text_bg.fill((245, 245, 245))
-        screen.blit(text_bg, (20, 100))
+        # Draw Popup Box
+        pygame.draw.rect(screen, (245, 245, 245), (popup_x, popup_y, popup_width, popup_height), border_radius=15)
+        pygame.draw.rect(screen, (255, 255, 255), (popup_x, popup_y, popup_width, popup_height), 3, border_radius=15)
         
         # Use class fonts
         font_title = self.font
         font_subtitle = self.small_font
         font_normal = self.small_font
         
-        title = font_title.render("YOUR CONCENTRATION ARTWORK", True, (255, 255, 255))
-        screen.blit(title, (self.screen_width // 2 - title.get_width()//2, 30))
+        # Title
+        title = font_title.render("Game Finished!", True, (44, 62, 80))
+        title_rect = title.get_rect(center=(self.screen_width // 2, popup_y + 50))
+        screen.blit(title, title_rect)
         
         # Stats
-        x_left = 40
-        y = 130
+        y = popup_y + 120
+        center_x = self.screen_width // 2
         
-        header = font_subtitle.render("Performance Metrics", True, (44, 62, 80))
-        screen.blit(header, (x_left, y))
+        # Flowers Bloomed
+        bloomed_count = self.score
+        accuracy_pct = (bloomed_count / 20) * 100
+        bloomed_text = f"Flowers Bloomed: {bloomed_count}/20 ({accuracy_pct:.0f}%)"
+        bloomed_surf = font_normal.render(bloomed_text, True, (44, 62, 80))
+        screen.blit(bloomed_surf, bloomed_surf.get_rect(center=(center_x, y)))
         y += 50
         
-        bloomed_count = self.score
-        accuracy_pct = (bloomed_count / 12) * 100
+        # Distracted Rate
+        distracted_text = f"Distracted Rate: {self.final_distracted_rate:.1f}%"
+        distracted_surf = font_normal.render(distracted_text, True, (44, 62, 80))
+        screen.blit(distracted_surf, distracted_surf.get_rect(center=(center_x, y)))
+        y += 50
         
-        bloomed_label = font_normal.render(f"Flowers Bloomed: {bloomed_count}/12 ({accuracy_pct:.0f}%)", True, (44, 62, 80))
-        screen.blit(bloomed_label, (x_left, y))
-        y += 40
-        
-        if self.reaction_times:
-            avg_reaction = sum(self.reaction_times) / len(self.reaction_times)
-            reaction_label = font_normal.render(f"Avg Reaction Time: {avg_reaction:.3f}s", True, (44, 62, 80))
-            screen.blit(reaction_label, (x_left, y))
-            y += 40
-            
         # Assessment
-        if bloomed_count >= 10:
+        if bloomed_count >= 16:
             assessment = "Outstanding!"
             color = (39, 174, 96)
-        elif bloomed_count >= 7:
+        elif bloomed_count >= 10:
             assessment = "Great Work!"
             color = (52, 152, 219)
         else:
@@ -628,8 +484,8 @@ class Game1Scene(Scene):
             color = (231, 76, 60)
             
         assess_text = font_title.render(assessment, True, color)
-        screen.blit(assess_text, (x_left, y + 20))
+        screen.blit(assess_text, assess_text.get_rect(center=(center_x, y + 20)))
         
         # Instruction to exit
-        exit_text = font_normal.render("Press SPACE to return to Menu", True, (200, 200, 200))
-        screen.blit(exit_text, (self.screen_width // 2 - exit_text.get_width()//2, self.screen_height - 100))
+        exit_text = font_normal.render("Press SPACE to return to Menu", True, (100, 100, 100))
+        screen.blit(exit_text, exit_text.get_rect(center=(center_x, popup_y + popup_height - 50)))

@@ -1,14 +1,17 @@
 import pygame
 import time
-import math
 import os
 from scene_base import Scene
+from menu_scene import MenuScene
+
+SCREEN_WIDTH = 1600
+SCREEN_HEIGHT = 900
 
 class CalibrationScene(Scene):
     def __init__(self, manager):
         super().__init__(manager)
         
-        # Load Algerian Font
+        # Load Font
         font_path = os.path.join(os.path.dirname(__file__), '..', 'Asset', 'Algerian Regular.ttf')
         try:
             self.font = pygame.font.Font(font_path, 30)
@@ -21,107 +24,100 @@ class CalibrationScene(Scene):
         # Calibration State
         self.step = 0 
         # 0: Intro
-        # 1: Look Left
-        # 2: Look Right
-        # 3: Look Top
-        # 4: Look Bottom
-        # 5: Center / Verify
-        # 6: Complete
+        # 1: Follow the Dot (Auto-Calibrate)
+        # 2: Verify
         
-        self.calibration_points = {
-            "left": (100, 400),
-            "right": (1100, 400),
-            "top": (600, 100),
-            "bottom": (600, 700),
-            "center": (600, 400)
-        }
+        self.target_pos = [SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2]
+        self.target_dir = 1 # 1: Right, -1: Left
+        self.target_speed = 8 # Faster
         
-        self.timer = 0
-        self.hold_duration = 2.0 # Seconds to hold gaze
-        self.start_hold_time = None
+        self.start_time = None
+        self.duration = 5.0 # 5 seconds of following
         
-        self.left_verified = False
-        self.right_verified = False
+        # Collected Extremes
+        self.min_x_ratio = 1.0
+        self.max_x_ratio = 0.0
         
         # Button
-        self.start_btn_rect = pygame.Rect(500, 600, 200, 60)
+        self.start_btn_rect = pygame.Rect(SCREEN_WIDTH//2 - 100, SCREEN_HEIGHT - 150, 200, 60)
 
     def on_enter(self):
         print("Entering Calibration Scene")
         self.step = 0
-        self.left_verified = False
-        self.right_verified = False
+        self.start_time = None
+        self.min_x_ratio = 1.0
+        self.max_x_ratio = 0.0
 
     def update(self):
         # Process Eye Tracking
-        if hasattr(self.manager, 'eye_tracker') and hasattr(self.manager.camera, 'current_frame'):
-            self.manager.eye_tracker.process_frame(self.manager.camera.current_frame)
+        gaze = self.manager.eye_tracker.gaze
         
-        gaze = self.manager.eye_tracker.get_gaze_position()
-        
-        if self.step == 0:
-            # Intro
-            pass
+        if self.step == 1:
+            if self.start_time is None:
+                self.start_time = time.time()
             
-        elif self.step == 1: # Verify Left
-            if gaze and gaze[0] < 400: # Looked leftish
-                if self.start_hold_time is None:
-                    self.start_hold_time = time.time()
-                elif time.time() - self.start_hold_time > 1.0:
-                    self.left_verified = True
-                    self.step = 2 # Go to Right
-                    self.start_hold_time = None
-            else:
-                self.start_hold_time = None
+            # Move Target (Simple Horizontal Sweep)
+            self.target_pos[0] += self.target_speed * self.target_dir
+            if self.target_pos[0] > SCREEN_WIDTH - 100:
+                self.target_dir = -1
+            elif self.target_pos[0] < 100:
+                self.target_dir = 1
                 
-        elif self.step == 2: # Verify Right
-            if gaze and gaze[0] > 800: # Looked rightish
-                if self.start_hold_time is None:
-                    self.start_hold_time = time.time()
-                elif time.time() - self.start_hold_time > 1.0:
-                    self.right_verified = True
-                    self.step = 3 # Done
-                    self.start_hold_time = None
-            else:
-                self.start_hold_time = None
+            # Collect Data
+            if gaze.pupils_located:
+                rx = gaze.horizontal_ratio()
+                
+                if rx is not None:
+                    self.min_x_ratio = min(self.min_x_ratio, rx)
+                    self.max_x_ratio = max(self.max_x_ratio, rx)
+                    
+                    # Auto-Update Calibration Live
+                    # Left Edge (Screen 0) -> High Ratio (e.g. 0.85)
+                    # Right Edge (Screen W) -> Low Ratio (e.g. 0.15)
+                    
+                    # We update the tracker with the observed extremes
+                    # But we clamp them to reasonable values to avoid glitches
+                    
+                    # For now, let's just trust the extremes if they are reasonable
+                    # or just rely on the user verifying it.
+                    
+                    # Let's apply it immediately to see effect
+                    self.manager.eye_tracker.calibrate(
+                        self.max_x_ratio, # Left
+                        self.min_x_ratio, # Right
+                        0.15, # Top (Default)
+                        0.85  # Bottom (Default)
+                    )
+
+            # Check Time
+            if time.time() - self.start_time > self.duration:
+                self.step = 2
 
     def draw(self, screen):
-        # Background (Camera is already drawn by framework)
+        # Background is camera (handled by framework)
         
-        # Draw Gaze Feedback (Trackball)
-        gaze = self.manager.eye_tracker.get_gaze_position()
-        if gaze:
-            pygame.draw.circle(screen, (0, 255, 255), (int(gaze[0]), int(gaze[1])), 20)
-            pygame.draw.circle(screen, (255, 255, 255), (int(gaze[0]), int(gaze[1])), 5)
-        else:
-            text = self.font.render("No Face Detected", True, (255, 0, 0))
-            screen.blit(text, (10, 10))
+        # Draw Gaze Feedback (Cyan)
+        gaze_pos = self.manager.eye_tracker.get_gaze_position()
+        if gaze_pos:
+            pygame.draw.circle(screen, (0, 255, 255), (int(gaze_pos[0]), int(gaze_pos[1])), 20)
+            pygame.draw.circle(screen, (255, 255, 255), (int(gaze_pos[0]), int(gaze_pos[1])), 5)
 
-        # Draw Instructions based on step
         if self.step == 0:
             self._draw_text_centered(screen, "Calibration Check", -100, self.large_font)
-            self._draw_text_centered(screen, "Follow the instructions to verify eye tracking.", -40)
-            self._draw_text_centered(screen, "Press SPACE to start.", 20)
+            self._draw_text_centered(screen, "Follow the RED DOT with your eyes.", -40)
+            self._draw_text_centered(screen, "The cursor (CYAN) should start following you.", 20)
+            self._draw_text_centered(screen, "Press SPACE to start.", 120)
             
         elif self.step == 1:
-            self._draw_text_centered(screen, "Look at the LEFT side", -200, self.large_font)
-            # Draw target area
-            pygame.draw.circle(screen, (255, 0, 0, 100), self.calibration_points["left"], 50, 5)
-            if self.start_hold_time:
-                progress = (time.time() - self.start_hold_time) / 1.0
-                pygame.draw.circle(screen, (0, 255, 0), self.calibration_points["left"], int(50 * progress))
-
+            # Draw Moving Target
+            pygame.draw.circle(screen, (255, 0, 0), (int(self.target_pos[0]), int(self.target_pos[1])), 30)
+            self._draw_text_centered(screen, "Follow the Red Dot...", -200)
+            
         elif self.step == 2:
-            self._draw_text_centered(screen, "Look at the RIGHT side", -200, self.large_font)
-            # Draw target area
-            pygame.draw.circle(screen, (255, 0, 0, 100), self.calibration_points["right"], 50, 5)
-            if self.start_hold_time:
-                progress = (time.time() - self.start_hold_time) / 1.0
-                pygame.draw.circle(screen, (0, 255, 0), self.calibration_points["right"], int(50 * progress))
-
-        elif self.step == 3:
-            self._draw_text_centered(screen, "Calibration Complete!", -100, self.large_font)
-            self._draw_text_centered(screen, "Press SPACE to continue to Menu", -40)
+            self._draw_text_centered(screen, "Verification", -100, self.large_font)
+            self._draw_text_centered(screen, "Look around. Does the cursor follow you?", -40)
+            self._draw_text_centered(screen, "It is normal if it follows to the other side!", 20)
+            self._draw_text_centered(screen, "If yes, press continue.", 80)
             
             # Draw Start Button
             pygame.draw.rect(screen, (0, 200, 0), self.start_btn_rect, border_radius=10)
@@ -135,12 +131,9 @@ class CalibrationScene(Scene):
         if font is None:
             font = self.font
         surf = font.render(text, True, (255, 255, 255))
-        # Add shadow
         shadow = font.render(text, True, (0, 0, 0))
-        
-        center_x = 1200 // 2
-        center_y = 800 // 2
-        
+        center_x = SCREEN_WIDTH // 2
+        center_y = SCREEN_HEIGHT // 2
         rect = surf.get_rect(center=(center_x, center_y + y_offset))
         screen.blit(shadow, (rect.x + 2, rect.y + 2))
         screen.blit(surf, rect)
@@ -151,14 +144,12 @@ class CalibrationScene(Scene):
                 if event.key == pygame.K_SPACE:
                     if self.step == 0:
                         self.step = 1
-                    elif self.step == 3:
+                    elif self.step == 2:
                         # Go to Menu
-                        from menu_scene import MenuScene
                         self.next_scene = MenuScene(self.manager)
             
             if event.type == pygame.MOUSEBUTTONDOWN:
-                if self.step == 3:
+                if self.step == 2:
                     if self.start_btn_rect.collidepoint(event.pos):
                         # Go to Menu
-                        from menu_scene import MenuScene
                         self.next_scene = MenuScene(self.manager)

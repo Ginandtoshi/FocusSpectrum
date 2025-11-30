@@ -585,6 +585,13 @@ class Game2Scene(Scene):
             self.large_font = pygame.font.SysFont("Arial", 48)
             
         self.exit_btn_rect = pygame.Rect(self.width - 120, self.height - 60, 100, 40)
+        
+        # Intro State
+        self.intro_start_time = None
+        self.show_start_prompt = False
+        
+        # Oops Messages
+        self.oops_messages = []
 
     def on_enter(self):
         print("Entering Game 2: Metaball Hand Tracking")
@@ -592,11 +599,19 @@ class Game2Scene(Scene):
         self.game_active = False
         self.game_over = False
         self.score = 0
+        self.intro_start_time = time.time()
+        self.show_start_prompt = False
+        self.oops_messages = []
 
     def update(self):
         # Process Camera Frame
         if hasattr(self.manager.camera, 'current_frame') and self.manager.camera.current_frame is not None:
             self.hand_provider.process_frame(self.manager.camera.current_frame)
+        
+        # Intro Logic
+        if not self.game_active and not self.game_over:
+            if time.time() - self.intro_start_time > 10:
+                self.show_start_prompt = True
         
         # Game Logic
         time_left = 0
@@ -621,9 +636,22 @@ class Game2Scene(Scene):
         # Check Collisions
         ball_x, ball_y = self.hand_provider.get_position()
         if self.game_active:
+            prev_collisions = self.hand_provider.get_boundary_collisions()
             self.hand_provider.check_focus_boundary_collision(self.metaball_renderer)
+            curr_collisions = self.hand_provider.get_boundary_collisions()
+            
+            if curr_collisions > prev_collisions:
+                self.oops_messages.append({
+                    'pos': (ball_x, ball_y),
+                    'start_time': time.time()
+                })
+
             if self.metaball_renderer.is_point_in_focus_area(ball_x, ball_y):
                 self.score += 1
+        
+        # Update Oops Messages
+        current_time = time.time()
+        self.oops_messages = [msg for msg in self.oops_messages if current_time - msg['start_time'] < 1.0]
 
     def draw(self, screen):
         # Background is already drawn by framework (Camera)
@@ -644,8 +672,14 @@ class Game2Scene(Scene):
         current_time_factor = time.time() * 0.5
         draw_pupil_eye(screen, ball_x, ball_y, current_radius, current_time_factor)
         
-        # HUD
-        self._draw_hud(screen)
+        # Draw Oops Messages
+        current_time = time.time()
+        for msg in self.oops_messages:
+            elapsed = current_time - msg['start_time']
+            alpha = max(0, int(255 * (1.0 - elapsed)))
+            oops_text = self.large_font.render("Oops!", True, (255, 50, 50))
+            oops_text.set_alpha(alpha)
+            screen.blit(oops_text, (msg['pos'][0], msg['pos'][1] - 60))
         
         # Draw Exit Button
         pygame.draw.rect(screen, (200, 50, 50), self.exit_btn_rect, border_radius=5)
@@ -654,18 +688,113 @@ class Game2Scene(Scene):
         screen.blit(exit_text, (self.exit_btn_rect.centerx - exit_text.get_width() // 2, self.exit_btn_rect.centery - exit_text.get_height() // 2))
         
         if self.game_over:
-            overlay = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
-            overlay.fill((0, 0, 0, 150))
-            screen.blit(overlay, (0, 0))
+            self._draw_report(screen)
+        elif not self.game_active:
+            self._draw_intro(screen)
+        else:
+            self._draw_hud(screen)
+            self._draw_timer_bar(screen)
+
+    def _draw_timer_bar(self, screen):
+        if not self.game_active or not self.game_start_time:
+            return
             
-            msg = self.large_font.render("Game Over!", True, (255, 255, 255))
-            screen.blit(msg, (self.width // 2 - msg.get_width()//2, self.height // 2 - 100))
+        elapsed = time.time() - self.game_start_time
+        progress = 1.0 - (elapsed / self.game_duration)
+        progress = max(0.0, min(1.0, progress))
+        
+        bar_width = 600
+        bar_height = 15
+        bar_x = (self.width - bar_width) // 2
+        bar_y = 30
+        
+        # Background
+        pygame.draw.rect(screen, (40, 40, 40), (bar_x, bar_y, bar_width, bar_height), border_radius=8)
+        
+        # Fill
+        fill_width = int(bar_width * progress)
+        if fill_width > 0:
+            if progress > 0.5:
+                color = (100, 255, 100)
+            elif progress > 0.2:
+                color = (255, 255, 100)
+            else:
+                color = (255, 100, 100)
+            pygame.draw.rect(screen, color, (bar_x, bar_y, fill_width, bar_height), border_radius=8)
             
-            score_msg = self.large_font.render(f"Final Score: {self.score}", True, (255, 255, 0))
-            screen.blit(score_msg, (self.width // 2 - score_msg.get_width()//2, self.height // 2 - 40))
+        # Border
+        pygame.draw.rect(screen, (200, 200, 200), (bar_x, bar_y, bar_width, bar_height), 2, border_radius=8)
+
+    def _draw_intro(self, screen):
+        # Instructions
+        instructions = [
+            "Raise one finger to control the eye.",
+            "Move around until the eye follows your finger.",
+            "Keep the eye inside the moving blobs to score points!"
+        ]
+        
+        line_height = 40
+        total_instr_height = len(instructions) * line_height
+        
+        # Center instructions vertically (slightly higher to accommodate prompt)
+        start_y = (self.height - total_instr_height) // 2 - 40
+        
+        for i, line in enumerate(instructions):
+            text = self.font.render(line, True, (255, 255, 255))
+            screen.blit(text, (self.width // 2 - text.get_width() // 2, start_y + i * line_height))
             
-            exit_msg = self.font.render("Press SPACE to return to Menu", True, (200, 200, 200))
-            screen.blit(exit_msg, (self.width // 2 - exit_msg.get_width()//2, self.height // 2 + 50))
+        # Flickering Start Prompt
+        if self.show_start_prompt:
+            alpha = abs(math.sin(time.time() * 3)) * 255
+            prompt_surf = self.large_font.render("Press SPACE to Start", True, (255, 255, 0))
+            prompt_surf.set_alpha(int(alpha))
+            
+            # Position below instructions
+            prompt_y = start_y + total_instr_height + 50
+            screen.blit(prompt_surf, (self.width // 2 - prompt_surf.get_width() // 2, prompt_y))
+
+    def _draw_report(self, screen):
+        overlay = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 200))
+        screen.blit(overlay, (0, 0))
+        
+        # Calculate Stats
+        hits = self.hand_provider.get_boundary_collisions()
+        distraction_rate = min(100, hits * 10)
+        
+        if self.score > 250:
+            eval_text = "Outstanding!"
+            eval_color = (0, 255, 0)
+        elif self.score > 100:
+            eval_text = "Great Work!"
+            eval_color = (255, 255, 0)
+        else:
+            eval_text = "Try Better Next Time!"
+            eval_color = (255, 100, 100)
+            
+        if hits == 0:
+            focus_text = "Very Focused"
+        else:
+            focus_text = f"{distraction_rate}%"
+
+        # Draw Report
+        title = self.large_font.render("Game Report", True, (255, 255, 255))
+        screen.blit(title, (self.width // 2 - title.get_width() // 2, 150))
+        
+        lines = [
+            f"Final Score: {self.score}",
+            f"Boundary Hits: {hits}",
+            f"Distraction Level: {focus_text}",
+            f"Evaluation: {eval_text}"
+        ]
+        
+        for i, line in enumerate(lines):
+            color = eval_color if i == 3 else (255, 255, 255)
+            text = self.font.render(line, True, color)
+            screen.blit(text, (self.width // 2 - text.get_width() // 2, 250 + i * 50))
+            
+        cont_text = self.font.render("Press SPACE to Continue", True, (200, 200, 200))
+        screen.blit(cont_text, (self.width // 2 - cont_text.get_width() // 2, 500))
 
     def _draw_hud(self, screen):
         ball_x, ball_y = self.hand_provider.get_position()
@@ -678,7 +807,7 @@ class Game2Scene(Scene):
             time_left = max(0, self.game_duration - (time.time() - self.game_start_time))
             
         info_lines = [
-            f'Time: {time_left:.1f}s' if self.game_active else 'Press SPACE to start',
+            f'Time: {time_left:.1f}s',
             f'Score: {self.score}',
             f'Pupil Size: {current_radius:.1f}px (x{difficulty_factor:.1f})',
             f'Boundary Hits: {collision_count}',
@@ -717,7 +846,7 @@ class Game2Scene(Scene):
                         # Return to Menu
                         from menu_scene import MenuScene
                         self.next_scene = MenuScene(self.manager)
-                    elif not self.game_active:
+                    elif not self.game_active and self.show_start_prompt:
                         self.game_active = True
                         self.game_start_time = time.time()
                         self.score = 0
