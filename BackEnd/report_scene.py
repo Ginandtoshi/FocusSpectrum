@@ -126,7 +126,8 @@ class RorschachBlob:
             (int(self.size * 2.5), int(self.size * 2.5)),
             pygame.SRCALPHA
         )
-        fade_alpha = int(map_range(self.focus_ratio, 0.0, 1.0, 8, 18))
+        # Lower alpha for longer trails to fill gaps from fewer particles
+        fade_alpha = int(map_range(self.focus_ratio, 0.0, 1.0, 5, 12))
         self.fade_surface.fill((245, 243, 240, fade_alpha))
         
         # Draw Rect
@@ -171,10 +172,12 @@ class RorschachBlob:
         self.spread = base_spread + error_factor
         
         # 4. Particle Count
-        self.n_plotters = int(map_range(self.focus_ratio, 0.0, 1.0, 1800, 2200))
+        # Reduced count to improve performance with pure-Python noise library
+        self.n_plotters = int(map_range(self.focus_ratio, 0.0, 1.0, 150, 300))
         
         # 5. Radius
-        self.max_radius = map_range(self.focus_ratio, 0.0, 1.0, 4, 8)
+        # Increased radius to compensate for fewer particles
+        self.max_radius = map_range(self.focus_ratio, 0.0, 1.0, 8, 16)
         
         # 6. Octaves
         self.noise_octaves = int(map_range(self.focus_ratio, 0.0, 1.0, 5, 2))
@@ -437,14 +440,6 @@ class ReportScene(Scene):
             screen.blit(text, (x, (nav_y - text.get_height()) // 2))
             x += text.get_width() + 25
         
-        nav_items_center = ["Analysis", "Metrics", "History", "Export"]
-        total_width = sum(self.nav_font.size(item)[0] for item in nav_items_center) + 60
-        x = w // 2 - total_width // 2
-        for item in nav_items_center:
-            text = self.nav_font.render(item, True, self.light_text)
-            screen.blit(text, (x, (nav_y - text.get_height()) // 2))
-            x += text.get_width() + 20
-        
         right_text = self.nav_font.render("USER SESSION 01", True, self.light_text)
         screen.blit(right_text, (w - right_text.get_width() - 30, (nav_y - right_text.get_height()) // 2))
         
@@ -475,6 +470,19 @@ class ReportScene(Scene):
         
         desc_y = line_y + 30
         
+        # --- Description Title ---
+        if self.focus_ratio > 0.7:
+            desc_title = "Excellent concentration achieved."
+        elif self.focus_ratio > 0.4:
+            desc_title = "Good focus with room to improve."
+        else:
+            desc_title = "Focus needs improvement."
+        
+        title_surf = self.body_font.render(desc_title, True, self.text_color)
+        screen.blit(title_surf, (content_x, desc_y))
+        desc_y += 30
+
+        # --- Overall Stats ---
         desc_lines = [
             f"Overall Score: {self.focus_score:.0f}/100",
             f"Distractions: {self.distraction_count}",
@@ -486,29 +494,17 @@ class ReportScene(Scene):
             screen.blit(line_surf, (content_x, desc_y))
             desc_y += 22
             
-        desc_y += 20
-        link_text = self.small_font.render("Press SPACE to Return to Menu", True, self.text_color)
-        screen.blit(link_text, (content_x, desc_y))
+        desc_y += 10
 
-    def _draw_right_description(self, screen, w, h):
-        desc_x = self.left_col_width + 40
-        desc_y = h * 0.6
-        
-        if self.focus_ratio > 0.7:
-            desc_title = "Excellent concentration achieved."
-        elif self.focus_ratio > 0.4:
-            desc_title = "Good focus with room to improve."
-        else:
-            desc_title = "Focus needs improvement."
-        
-        title_surf = self.body_font.render(desc_title, True, self.text_color)
-        screen.blit(title_surf, (desc_x, desc_y))
-        
-        y = desc_y + 30
+        # --- Per-Game Metrics ---
         for key, val in self.metrics_text.items():
             line_surf = self.small_font.render(f"{key}: {val}", True, self.light_text)
-            screen.blit(line_surf, (desc_x, y))
-            y += 22
+            screen.blit(line_surf, (content_x, desc_y))
+            desc_y += 22
+
+        desc_y += 30
+        link_text = self.small_font.render("Press SPACE to Return to Menu", True, self.text_color)
+        screen.blit(link_text, (content_x, desc_y))
 
     def _draw_circle_background(self, screen):
         circle_color = (215, 212, 208)
@@ -558,7 +554,7 @@ class ReportScene(Scene):
             self.rorschach.update_and_draw()
             
         # 6. Score Overlay
-        self._draw_score_display(screen)
+        # self._draw_score_display(screen)
             
         # 7. Nav Bar
         self._draw_nav_bar(screen, w, h)
@@ -566,8 +562,8 @@ class ReportScene(Scene):
         # 8. Left Content
         self._draw_left_content(screen, w, h)
         
-        # 9. Right Description
-        self._draw_right_description(screen, w, h)
+        # 9. Right Description (Merged into Left Content)
+        # self._draw_right_description(screen, w, h)
 
     def handle_events(self, events):
         for event in events:

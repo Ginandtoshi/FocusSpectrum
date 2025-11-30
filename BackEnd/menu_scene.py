@@ -134,11 +134,36 @@ class MenuScene(Scene):
                     from report_scene import ReportScene
                     self.next_scene = ReportScene(self.manager)
                 elif self.btn_sample.collidepoint(event.pos):
-                    # Inject sample data
-                    self.manager.data["scores"] = {
-                        "game1": {"score": 9.5},
-                        "game2": {"collisions": 3},
-                        "game3": {"distraction_pct": 12.0, "errors": 2}
-                    }
+                    # Define 3 sample datasets for different focus levels
+                    samples = [
+                        # 1. High Focus (> 70) - "Focus Achieved"
+                        {
+                            "game1": {"score": 10.5}, # ~87%
+                            "game2": {"collisions": 2}, # 90%
+                            "game3": {"distraction_pct": 5.0, "errors": 1} # 93%
+                        },
+                        # 2. Medium Focus (40-70) - "Stay Focused"
+                        {
+                            "game1": {"score": 6.0}, # 50%
+                            "game2": {"collisions": 9}, # 55%
+                            "game3": {"distraction_pct": 25.0, "errors": 5} # 65%
+                        },
+                        # 3. Low Focus (< 40) - "Need Focus"
+                        {
+                            "game1": {"score": 3.0}, # 25%
+                            "game2": {"collisions": 16}, # 20%
+                            "game3": {"distraction_pct": 50.0, "errors": 8} # 34%
+                        }
+                    ]
+                    
+                    # Get current index, default to 0
+                    current_idx = self.manager.data.get("sample_index", 0)
+                    
+                    # Inject sample based on index
+                    self.manager.data["scores"] = samples[current_idx]
+                    
+                    # Update index for next time (cycle 0 -> 1 -> 2 -> 0)
+                    self.manager.data["sample_index"] = (current_idx + 1) % len(samples)
+                    
                     from report_scene import ReportScene
                     self.next_scene = ReportScene(self.manager)

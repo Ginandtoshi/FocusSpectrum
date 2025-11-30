@@ -119,7 +119,7 @@ class OnboardingScene(Scene):
         screen.blit(overlay, (0, 0))
 
         # Draw Text
-        text = self.font.render("Hello, Look at Me", True, (255, 255, 255))
+        text = self.font.render("Focus Spectrum", True, (255, 255, 255))
         screen.blit(text, (SCREEN_WIDTH//2 - text.get_width()//2, SCREEN_HEIGHT//2 - 50))
         
         sub = self.small_font.render("Press SPACE to Start Calibration", True, (200, 200, 200))

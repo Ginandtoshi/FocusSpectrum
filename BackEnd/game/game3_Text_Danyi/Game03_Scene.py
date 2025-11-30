@@ -1794,7 +1794,7 @@ class Game3Scene(Scene):
             pygame.draw.rect(screen, (255, 215, 0), (panel_x, panel_y, panel_width, panel_height), 3, border_radius=15)
             
             # Title
-            title_surf = self.title_font.render("MISSION COMPLETE", True, (255, 215, 0))
+            title_surf = self.title_font.render("MISSION COMPLETE!", True, (255, 215, 0))
             title_rect = title_surf.get_rect(center=(SCREEN_WIDTH // 2, panel_y + 50))
             screen.blit(title_surf, title_rect)
             
