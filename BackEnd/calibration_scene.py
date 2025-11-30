@@ -40,6 +40,9 @@ class CalibrationScene(Scene):
         
         # Button
         self.start_btn_rect = pygame.Rect(SCREEN_WIDTH//2 - 100, SCREEN_HEIGHT - 150, 200, 60)
+        
+        # Skip Button (Top Right)
+        self.skip_btn_rect = pygame.Rect(SCREEN_WIDTH - 140, 20, 120, 50)
 
     def on_enter(self):
         print("Entering Calibration Scene")
@@ -102,6 +105,11 @@ class CalibrationScene(Scene):
             pygame.draw.circle(screen, (0, 255, 255), (int(gaze_pos[0]), int(gaze_pos[1])), 20)
             pygame.draw.circle(screen, (255, 255, 255), (int(gaze_pos[0]), int(gaze_pos[1])), 5)
 
+        # Draw Skip Button
+        pygame.draw.rect(screen, (255, 255, 255), self.skip_btn_rect, 2, border_radius=5)
+        skip_text = self.font.render("SKIP", True, (255, 255, 255))
+        screen.blit(skip_text, (self.skip_btn_rect.centerx - skip_text.get_width()//2, self.skip_btn_rect.centery - skip_text.get_height()//2))
+
         if self.step == 0:
             self._draw_text_centered(screen, "Calibration Check", -100, self.large_font)
             self._draw_text_centered(screen, "Follow the RED DOT with your eyes.", -40)
@@ -120,7 +128,7 @@ class CalibrationScene(Scene):
             self._draw_text_centered(screen, "If yes, press continue.", 80)
             
             # Draw Start Button
-            pygame.draw.rect(screen, (0, 200, 0), self.start_btn_rect, border_radius=10)
+            # pygame.draw.rect(screen, (0, 200, 0), self.start_btn_rect, border_radius=10)
             pygame.draw.rect(screen, (255, 255, 255), self.start_btn_rect, 3, border_radius=10)
             
             btn_text = self.font.render("CONTINUE", True, (255, 255, 255))
@@ -149,6 +157,10 @@ class CalibrationScene(Scene):
                         self.next_scene = MenuScene(self.manager)
             
             if event.type == pygame.MOUSEBUTTONDOWN:
+                if self.skip_btn_rect.collidepoint(event.pos):
+                    self.next_scene = MenuScene(self.manager)
+                    return
+
                 if self.step == 2:
                     if self.start_btn_rect.collidepoint(event.pos):
                         # Go to Menu

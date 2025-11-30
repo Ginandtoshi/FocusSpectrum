@@ -9,6 +9,7 @@ scipy>=1.7
 flask>=2.0
 mediapipe>=0.8.9
 utils
+perlin-noise
 
 
 # if you build a local web UI that proxies eye-tracker data

@@ -1285,6 +1285,7 @@ class Game3Scene(Scene):
         self.end_time = None
         self.error_count = 0
         self.game_started = False
+        self.show_instructions = True
         
         # 重置分心统计
         self.total_frames = 0
@@ -1367,8 +1368,14 @@ class Game3Scene(Scene):
                     # Return to menu
                     from menu_scene import MenuScene
                     self.next_scene = MenuScene(self.manager)
+                elif event.key == pygame.K_SPACE:
+                    if self.show_instructions:
+                        self.show_instructions = False
             
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                if self.show_instructions:
+                    return
+
                 if self.game_won:
                     # Click to return to menu if won
                     if pygame.time.get_ticks() - self.win_time > 2000:
@@ -1516,7 +1523,7 @@ class Game3Scene(Scene):
         self.chat_notification.draw(screen)
         
         # Draw Exit Button
-        pygame.draw.rect(screen, (200, 50, 50), self.exit_btn_rect, border_radius=5)
+        # pygame.draw.rect(screen, (200, 50, 50), self.exit_btn_rect, border_radius=5)
         pygame.draw.rect(screen, (255, 255, 255), self.exit_btn_rect, 2, border_radius=5)
         exit_text = self.slot_font.render("EXIT", True, (255, 255, 255))
         screen.blit(exit_text, (self.exit_btn_rect.centerx - exit_text.get_width() // 2, self.exit_btn_rect.centery - exit_text.get_height() // 2))
@@ -1814,14 +1821,14 @@ class Game3Scene(Scene):
             screen.blit(cont_surf, cont_rect)
 
         # Instruction Overlay
-        if not self.game_started and not self.game_won:
+        if self.show_instructions:
             overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
             overlay.fill((0, 0, 0, 180))
             screen.blit(overlay, (0, 0))
             
             # Instruction Box
             box_width = 700
-            box_height = 250
+            box_height = 300
             box_x = (SCREEN_WIDTH - box_width) // 2
             box_y = (SCREEN_HEIGHT - box_height) // 2
             
@@ -1836,7 +1843,9 @@ class Game3Scene(Scene):
                 "A -> 1 -> B -> 2 -> C -> 3 ...",
                 "",
                 "Try not to be distracted by the notifications!",
-                "Game starts when you place the first item 'A'."
+                "Game starts when you place the first item 'A'.",
+                "",
+                "Press SPACE to start"
             ]
             
             start_y = box_y + 30
@@ -1844,6 +1853,13 @@ class Game3Scene(Scene):
                 if i == 0:
                     color = (255, 200, 100)
                     font = self.title_font
+                elif i == len(lines) - 1:
+                    # Blink effect
+                    if (pygame.time.get_ticks() // 500) % 2 == 0:
+                        color = (100, 255, 100)
+                    else:
+                        color = (50, 150, 50)
+                    font = self.ui_font
                 else:
                     color = (220, 220, 220)
                     font = self.ui_font

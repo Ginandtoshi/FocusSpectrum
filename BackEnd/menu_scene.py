@@ -53,6 +53,9 @@ class MenuScene(Scene):
         # Report Button (Placed below Game 3)
         self.btn_report = pygame.Rect(center_x - self.btn_width//2, btn_start_y + 3*(self.btn_height + self.spacing), self.btn_width, self.btn_height)
 
+        # Sample Report Button (Small button at bottom)
+        self.btn_sample = pygame.Rect(center_x - 100, screen_height - 60, 200, 40)
+
     def on_enter(self):
         print("Entering Menu Scene")
 
@@ -78,6 +81,17 @@ class MenuScene(Scene):
         # Draw Report Button if all games completed
         if len(completed) >= 3: # Assuming 3 games
              self._draw_button(screen, self.btn_report, "VIEW FINAL REPORT", False, (255, 215, 0))
+
+        # Draw Sample Report Button
+        self._draw_sample_button(screen)
+
+    def _draw_sample_button(self, screen):
+        pygame.draw.rect(screen, (50, 50, 50), self.btn_sample, border_radius=10)
+        pygame.draw.rect(screen, (100, 100, 100), self.btn_sample, 2, border_radius=10)
+        text = self.font.render("See Sample Report", True, (200, 200, 200))
+        # Scale down font for this small button
+        small_text = pygame.transform.scale(text, (int(text.get_width() * 0.5), int(text.get_height() * 0.5)))
+        screen.blit(small_text, (self.btn_sample.centerx - small_text.get_width()//2, self.btn_sample.centery - small_text.get_height()//2))
 
     def _draw_button(self, screen, rect, text, is_completed, override_color=None):
         # Grey out if completed, but still clickable (or user preference)
@@ -117,5 +131,14 @@ class MenuScene(Scene):
                     from game.game3_Text_Danyi.Game03_Scene import Game3Scene
                     self.next_scene = Game3Scene(self.manager)
                 elif len(completed) >= 3 and self.btn_report.collidepoint(event.pos):
+                    from report_scene import ReportScene
+                    self.next_scene = ReportScene(self.manager)
+                elif self.btn_sample.collidepoint(event.pos):
+                    # Inject sample data
+                    self.manager.data["scores"] = {
+                        "game1": {"score": 9.5},
+                        "game2": {"collisions": 3},
+                        "game3": {"distraction_pct": 12.0, "errors": 2}
+                    }
                     from report_scene import ReportScene
                     self.next_scene = ReportScene(self.manager)

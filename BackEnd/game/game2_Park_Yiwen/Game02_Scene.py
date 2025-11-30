@@ -682,7 +682,7 @@ class Game2Scene(Scene):
             screen.blit(oops_text, (msg['pos'][0], msg['pos'][1] - 60))
         
         # Draw Exit Button
-        pygame.draw.rect(screen, (200, 50, 50), self.exit_btn_rect, border_radius=5)
+        # pygame.draw.rect(screen, (200, 50, 50), self.exit_btn_rect, border_radius=5)
         pygame.draw.rect(screen, (255, 255, 255), self.exit_btn_rect, 2, border_radius=5)
         exit_text = self.font.render("EXIT", True, (255, 255, 255))
         screen.blit(exit_text, (self.exit_btn_rect.centerx - exit_text.get_width() // 2, self.exit_btn_rect.centery - exit_text.get_height() // 2))
