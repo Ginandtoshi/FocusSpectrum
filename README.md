@@ -34,10 +34,10 @@ python BackEnd/framework.py
 1. **Main Menu**: Upon launching, you will see the main menu.
 2. **Calibration**: Click the "Calibration" button. Follow the red dot with your eyes to calibrate the eye tracker. This ensures accurate detection of your focus.
 3. **Play Games**: There are three distinct mini-games designed to test different aspects of your focus. You must complete all three to generate your final report.
-   - **Plant (Mei Lam)**: A focus endurance test. Keep your gaze steady to help the flowers bloom.
-   - **Park (Yiwen)**: A dynamic tracking test. Follow the moving targets amidst distractions.
-   - **Text (Danyi)**: A reading concentration test. Read the text while avoiding visual interruptions.
-4. **View Report**: After completing all games, a "Report" button will appear. Click it to see your personalized "Focus Spectrum" artwork, generated based on your performance data.
+   - **Blossom (Mei Lam)**: A focus endurance test. Keep your gaze steady to help the flowers bloom.
+   - **Metaball (Yiwen)**: A dynamic tracking test. Follow the moving targets amidst distractions.
+   - **Letter (Danyi)**: An alignment concentration test. Align the letter and number while avoiding visual interruptions.
+4. **View Report**: After completing all games, a "View Report" button will appear. Click it to see your personalized "Focus Spectrum" artwork, generated based on your performance data.
    - **Sample Report**: You can also view a sample report from the main menu to see what the output looks like.
 
 ## 🎨 Concept & Ideation
