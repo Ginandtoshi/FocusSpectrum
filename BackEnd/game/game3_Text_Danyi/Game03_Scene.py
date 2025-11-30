@@ -1035,23 +1035,10 @@ class BorderDistraction:
             self.dancers.append(PixelDancer(spawn_x, spawn_y))
         
         # 随机添加游走小人（从边框走入游戏区）
-        if len(self.wandering_dancers) < self.max_wandering and random.random() > 0.985:
-            # 从边框区随机位置开始
-            spawn_side = random.choice(['left', 'right', 'top', 'bottom'])
-            if spawn_side == 'left':
-                spawn_x = random.randint(20, 60)
-                spawn_y = random.randint(GAME_OFFSET_Y + 100, GAME_OFFSET_Y + GAME_HEIGHT - 100)
-            elif spawn_side == 'right':
-                spawn_x = random.randint(SCREEN_WIDTH - 60, SCREEN_WIDTH - 20)
-                spawn_y = random.randint(GAME_OFFSET_Y + 100, GAME_OFFSET_Y + GAME_HEIGHT - 100)
-            elif spawn_side == 'top':
-                spawn_x = random.randint(GAME_OFFSET_X + 100, GAME_OFFSET_X + GAME_WIDTH - 100)
-                spawn_y = random.randint(20, 60)
-            else:  # bottom
-                spawn_x = random.randint(GAME_OFFSET_X + 100, GAME_OFFSET_X + GAME_WIDTH - 100)
-                spawn_y = random.randint(SCREEN_HEIGHT - 60, SCREEN_HEIGHT - 20)
-            
-            self.wandering_dancers.append(WanderingDancer(spawn_x, spawn_y, self.game_area))
+        # DISABLED: All distractions must be outside game area
+        # if len(self.wandering_dancers) < self.max_wandering and random.random() > 0.985:
+        #     # ...
+        #     pass
         
         # 更新游走小人的位置
         for dancer in self.wandering_dancers:
@@ -1269,9 +1256,9 @@ class Game3Scene(Scene):
         self.border_distraction = BorderDistraction()
         self.next_chat_time = None  # 延迟到游戏开始后23秒
         
-        # 系统警告
-        self.system_warning = SystemWarning(self.distraction_font)
-        self.next_warning_time = None  # 延迟到游戏中后期
+        # 系统警告 (DISABLED)
+        # self.system_warning = SystemWarning(self.distraction_font)
+        # self.next_warning_time = None  # 延迟到游戏中后期
         
         # 眼动追踪
         self.eye_tracker = EyeTracker()
@@ -1314,8 +1301,8 @@ class Game3Scene(Scene):
         # 生成目标序列
         target_sequence = []
         for i in range(1, MAX_TARGET + 1):
-            target_sequence.append(str(i))
-            target_sequence.append(chr(64 + i))  # 'A' 是 65
+            target_sequence.append(chr(64 + i))  # 'A'
+            target_sequence.append(str(i))       # '1'
         
         # 创建槽位 - 底部横向排列
         slot_count = len(target_sequence)
@@ -1481,17 +1468,17 @@ class Game3Scene(Scene):
         # 更新干扰元素（传递游戏状态）
         self.border_distraction.update(current_time, self.game_started, self.start_time)
         self.chat_notification.update(current_time)
-        self.system_warning.update(current_time)
+        # self.system_warning.update(current_time)
         
         # 初始化聊天弹窗时间（游戏开始后3秒）
         if self.game_started and self.next_chat_time is None:
             self.next_chat_time = self.start_time + 3000 + random.randint(2000, 5000)  # 3秒 + 2-5秒随机延迟
         
         # 初始化系统警告时间（游戏进行到中后期，50%进度后）
-        if self.game_started and self.next_warning_time is None and len(self.slots) > 0:
-            # 当完成度达到40%时，设置警告时间
-            if self.current_target_index >= len(self.slots) * 0.4:
-                self.next_warning_time = current_time + random.randint(5000, 10000)  # 5-10秒后出现
+        # if self.game_started and self.next_warning_time is None and len(self.slots) > 0:
+        #     # 当完成度达到40%时，设置警告时间
+        #     if self.current_target_index >= len(self.slots) * 0.4:
+        #         self.next_warning_time = current_time + random.randint(5000, 10000)  # 5-10秒后出现
         
         # 定期显示聊天弹窗（只在游戏开始且干扰启用后）
         if self.game_started and self.next_chat_time is not None:
@@ -1500,11 +1487,11 @@ class Game3Scene(Scene):
                 self.next_chat_time = current_time + random.randint(8000, 15000)  # 8-15秒后再次弹出
         
         # 显示系统警告（游戏中后期）
-        if self.game_started and self.next_warning_time is not None:
-            if current_time >= self.next_warning_time and not self.system_warning.visible:
-                self.system_warning.show(current_time)
-                # 下次警告间隔更长
-                self.next_warning_time = current_time + random.randint(20000, 30000)  # 20-30秒后再次出现
+        # if self.game_started and self.next_warning_time is not None:
+        #     if current_time >= self.next_warning_time and not self.system_warning.visible:
+        #         self.system_warning.show(current_time)
+        #         # 下次警告间隔更长
+        #         self.next_warning_time = current_time + random.randint(20000, 30000)  # 20-30秒后再次出现
         
         if self.game_won:
             elapsed = current_time - self.win_time
@@ -1535,7 +1522,7 @@ class Game3Scene(Scene):
         screen.blit(exit_text, (self.exit_btn_rect.centerx - exit_text.get_width() // 2, self.exit_btn_rect.centery - exit_text.get_height() // 2))
         
         # 系统警告绘制在最上层（覆盖所有元素）
-        self.system_warning.draw(screen)
+        # self.system_warning.draw(screen)
         
         # 顶部标题面板（在游戏区域内）- 音频波形风格
         title_panel = pygame.Rect(GAME_OFFSET_X + PANEL_MARGIN, GAME_OFFSET_Y + PANEL_MARGIN, 
@@ -1786,28 +1773,83 @@ class Game3Scene(Scene):
         # 胜利画面
         if self.game_won:
             overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 200))
+            screen.blit(overlay, (0, 0))
+            
+            # Report Panel
+            panel_width = 600
+            panel_height = 400
+            panel_x = (SCREEN_WIDTH - panel_width) // 2
+            panel_y = (SCREEN_HEIGHT - panel_height) // 2
+            
+            # Draw Panel Background
+            pygame.draw.rect(screen, (30, 30, 30), (panel_x, panel_y, panel_width, panel_height), border_radius=15)
+            pygame.draw.rect(screen, (255, 215, 0), (panel_x, panel_y, panel_width, panel_height), 3, border_radius=15)
+            
+            # Title
+            title_surf = self.title_font.render("MISSION COMPLETE", True, (255, 215, 0))
+            title_rect = title_surf.get_rect(center=(SCREEN_WIDTH // 2, panel_y + 50))
+            screen.blit(title_surf, title_rect)
+            
+            # Stats
+            total_time = (self.end_time - self.start_time) / 1000.0
+            distraction_time = total_time * (self.distraction_percentage / 100.0)
+            
+            stats = [
+                f"Total Time: {total_time:.1f}s",
+                f"Mistakes: {self.error_count}",
+                f"Distraction Time: {distraction_time:.1f}s",
+                f"Focus Score: {max(0, 100 - int(self.distraction_percentage))}/100"
+            ]
+            
+            start_y = panel_y + 120
+            for i, stat in enumerate(stats):
+                text_surf = self.counter_font.render(stat, True, (220, 220, 220))
+                text_rect = text_surf.get_rect(center=(SCREEN_WIDTH // 2, start_y + i * 50))
+                screen.blit(text_surf, text_rect)
+            
+            # Continue Text
+            cont_surf = self.ui_font.render("Click anywhere to continue", True, (150, 150, 150))
+            cont_rect = cont_surf.get_rect(center=(SCREEN_WIDTH // 2, panel_y + panel_height - 40))
+            screen.blit(cont_surf, cont_rect)
+
+        # Instruction Overlay
+        if not self.game_started and not self.game_won:
+            overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
             overlay.fill((0, 0, 0, 180))
             screen.blit(overlay, (0, 0))
             
-            win_rect = pygame.Rect(GAME_OFFSET_X + GAME_WIDTH//2 - 250, 
-                                  GAME_OFFSET_Y + GAME_HEIGHT//2 - 100, 500, 200)
-            pygame.draw.rect(screen, RetroColors.PANEL_BG, win_rect)
-            draw_panel_border(screen, win_rect, RetroColors.COMPLETED, 4)
+            # Instruction Box
+            box_width = 700
+            box_height = 250
+            box_x = (SCREEN_WIDTH - box_width) // 2
+            box_y = (SCREEN_HEIGHT - box_height) // 2
             
-            win_text = self.title_font.render("SEQUENCE COMPLETE", True, RetroColors.COMPLETED)
-            win_center_x = GAME_OFFSET_X + GAME_WIDTH//2
-            win_center_y = GAME_OFFSET_Y + GAME_HEIGHT//2
-            win_rect_text = win_text.get_rect(center=(win_center_x, win_center_y - 50))
-            screen.blit(win_text, win_rect_text)
+            pygame.draw.rect(screen, (40, 40, 50), (box_x, box_y, box_width, box_height), border_radius=10)
+            pygame.draw.rect(screen, (200, 200, 200), (box_x, box_y, box_width, box_height), 2, border_radius=10)
             
-            # 显示最终统计
-            total_time = (self.end_time - self.start_time) / 1000.0
-            stats_text = self.ui_font.render(f"Time: {total_time:.1f}s  |  Errors: {self.error_count}", 
-                                            True, RetroColors.ACCENT_TAN)
-            stats_rect = stats_text.get_rect(center=(win_center_x, win_center_y))
-            screen.blit(stats_text, stats_rect)
+            # Text
+            lines = [
+                "INSTRUCTIONS",
+                "",
+                "Arrange the items in the sequence shown below:",
+                "A -> 1 -> B -> 2 -> C -> 3 ...",
+                "",
+                "Try not to be distracted by the notifications!",
+                "Game starts when you place the first item 'A'."
+            ]
             
-            instruction = self.ui_font.render("Click to return to menu", True, RetroColors.TEXT)
-            inst_rect = instruction.get_rect(center=(win_center_x, win_center_y + 40))
-            screen.blit(instruction, inst_rect)
+            start_y = box_y + 30
+            for i, line in enumerate(lines):
+                if i == 0:
+                    color = (255, 200, 100)
+                    font = self.title_font
+                else:
+                    color = (220, 220, 220)
+                    font = self.ui_font
+                
+                text_surf = font.render(line, True, color)
+                text_rect = text_surf.get_rect(center=(SCREEN_WIDTH // 2, start_y))
+                screen.blit(text_surf, text_rect)
+                start_y += text_surf.get_height() + 10
 
